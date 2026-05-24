@@ -1,0 +1,6 @@
+{
+  "name": "Chat Familiar",
+  "description": "Aplicación de mensajería familiar moderna con diseño estilo WhatsApp, simulación dinámica de integrantes, estados de conexión, notificaciones e interfaz de administración.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

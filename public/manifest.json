@@ -1,0 +1,33 @@
+{
+  "id": "/",
+  "short_name": "FamiChat",
+  "name": "FamiChat - Red Familiar Privada",
+  "description": "Red de Mensajería Familiar Privada de Alta Seguridad con Notas de Voz",
+  "categories": ["social", "chat", "family"],
+  "icons": [
+    {
+      "src": "/logo-famichat.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-famichat.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-famichat.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#020617",
+  "theme_color": "#047857",
+  "display": "standalone",
+  "orientation": "portrait"
+}
