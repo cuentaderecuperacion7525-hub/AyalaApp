@@ -902,16 +902,10 @@ export default function App() {
                   setShowCreditsModal(true);
                 }}
                 onBackToSelection={() => {
-                  const isPrivileged = activeUser.role === 'admin' || isSwitcherUnlocked;
-                  if (isPrivileged) {
-                    localStorage.removeItem('famichat_active_user_id');
-                    setActiveUser(null);
-                  } else {
-                    setPendingUserToSwitch(null);
-                    setPinAction('back_to_selection');
-                    window.history.pushState({ view: 'pin_modal' }, '');
-                    setShowIdentityPinModal(true);
-                  }
+                  setPendingUserToSwitch(null);
+                  setPinAction('back_to_selection');
+                  window.history.pushState({ view: 'pin_modal' }, '');
+                  setShowIdentityPinModal(true);
                 }}
               />
             </div>
