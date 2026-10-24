@@ -42,8 +42,12 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: 📱 Configurar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: 🐘 Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 📱 Aceptar licencias de Android SDK
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: 🔄 Sincronizar proyecto nativo con Capacitor
         run: npx cap sync android
@@ -55,17 +59,21 @@ jobs:
         run: |
           cd android
           if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            ./gradlew assembleRelease --stacktrace
+            ./gradlew assembleRelease --no-daemon --stacktrace
           else
-            ./gradlew assembleDebug --stacktrace
+            ./gradlew assembleDebug --no-daemon --stacktrace
           fi
 
       - name: 📦 Preparar archivo APK
         id: prepare_apk
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
-          echo "Encontrado APK en: $APK_PATH"
           mkdir -p release-output
+          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: No se encontró ningún archivo APK generado"
+            exit 1
+          fi
+          echo "Encontrado APK en: $APK_PATH"
           cp "$APK_PATH" release-output/FamiChat.apk
 
       - name: 🚀 Subir APK como artefacto de GitHub
