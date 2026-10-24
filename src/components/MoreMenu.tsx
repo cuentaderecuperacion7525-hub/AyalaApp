@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Contact } from '../types';
 import { 
-  MoreVertical, Shield, User, Smartphone, Radio, Volume2, VolumeX, 
+  MoreVertical, Shield, User, Radio, Volume2, VolumeX, 
   Check, Lock, Unlock, HelpCircle, X, ExternalLink, Cpu, ChevronRight,
-  Moon, Sun
+  Moon, Sun, DownloadCloud, RefreshCw
 } from 'lucide-react';
 
 interface MoreMenuProps {
@@ -15,8 +15,11 @@ interface MoreMenuProps {
   pushSupported: boolean;
   subscribingPush: boolean;
   onTogglePush: () => void;
-  onTriggerPwa: () => void;
-  isInstallable: boolean;
+  hasUpdate: boolean;
+  onCheckUpdates: () => void;
+  autoCheckUpdates: boolean;
+  onToggleAutoCheckUpdates: (val: boolean) => void;
+  checkingUpdate?: boolean;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   showFaqGuide: boolean;
@@ -36,8 +39,11 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
   pushSupported,
   subscribingPush,
   onTogglePush,
-  onTriggerPwa,
-  isInstallable,
+  hasUpdate,
+  onCheckUpdates,
+  autoCheckUpdates,
+  onToggleAutoCheckUpdates,
+  checkingUpdate = false,
   isOpen,
   onOpenChange,
   showFaqGuide,
@@ -70,7 +76,8 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
           document.getElementById('credits-modal-overlay') || 
           document.getElementById('pwa-install-modal-overlay') || 
           document.getElementById('pin-verification-modal-overlay') ||
-          document.getElementById('famichat-help-modal');
+          document.getElementById('famichat-help-modal') ||
+          document.getElementById('update-modal-overlay');
         
         if (hasOverlayOpen) {
           return;
@@ -112,17 +119,18 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
         title="Más Opciones"
       >
         <MoreVertical className="w-5 h-5 text-teal-10" />
-        {/* Unread/Active items state indicator */}
-        {isInstallable && (
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+        {/* Update notification dot if new version is available */}
+        {hasUpdate && (
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-800 animate-pulse" />
         )}
       </button>
 
-      {/* Popover Dropdown Card */}
+      {/* Popover Dropdown Card with smooth touch scrolling */}
       {isOpen && (
         <div 
           id="header-kebab-dropdown" 
-          className="absolute right-0 top-10 w-72 bg-white rounded-2xl shadow-[0_12px_36px_-6px_rgba(0,0,0,0.18)] border border-slate-150 py-3 z-50 text-slate-800 animate-fade-in flex flex-col gap-2"
+          className="absolute right-0 top-10 w-72 max-h-[calc(100dvh-85px)] md:max-h-[min(580px,calc(92vh-85px))] overflow-y-auto overscroll-contain custom-scrollbar bg-white rounded-2xl shadow-[0_12px_36px_-6px_rgba(0,0,0,0.22)] border border-slate-150 py-3 z-50 text-slate-800 animate-fade-in flex flex-col gap-2"
+          style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
         >
           {/* Active Profile Info Header Card inside menu */}
           <div className="px-4 pb-2.5 border-b border-slate-100">
@@ -237,28 +245,44 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               </button>
             )}
 
-            {/* Mobile PWA install launcher if installable */}
-            <button
-              onClick={() => {
-                onTriggerPwa();
-              }}
-              className={`w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold cursor-pointer ${
-                isInstallable ? 'text-amber-700 font-bold bg-amber-50 border border-amber-200/50' : 'text-slate-700'
-              }`}
-            >
-              <div className="flex items-center gap-1.5">
-                <Smartphone className={`w-4 h-4 shrink-0 ${isInstallable ? 'text-amber-550 animate-bounce' : 'text-slate-400'}`} />
+            {/* Buscar actualización automática - Única opción de actualización */}
+            <div className="w-full flex items-center justify-between p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700">
+              <button
+                type="button"
+                onClick={() => {
+                  if (hasUpdate && onCheckUpdates) {
+                    onCheckUpdates();
+                  } else {
+                    onToggleAutoCheckUpdates(!autoCheckUpdates);
+                  }
+                }}
+                className="flex items-center gap-1.5 flex-1 text-left cursor-pointer select-none"
+              >
+                <RefreshCw className={`w-4 h-4 shrink-0 ${hasUpdate ? 'text-emerald-600' : 'text-teal-600'}`} />
                 <div>
-                  <span>Modo App Pantalla Completa</span>
-                  <p className="text-[8.5px] text-slate-400 font-normal">Quita la barra URL del navegador</p>
+                  <div className="flex items-center gap-1.5">
+                    <span>Buscar actualización automática</span>
+                    {hasUpdate && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    )}
+                  </div>
+                  <span className="block text-[8.5px] text-slate-400 font-normal">
+                    {hasUpdate ? '¡Actualización lista! Toca para ver' : 'Revisar al abrir la app'}
+                  </span>
                 </div>
-              </div>
-              {isInstallable && (
-                <span className="bg-amber-400 text-slate-900 px-1 rounded text-[8px] font-extrabold uppercase animate-pulse">
-                  Ver Guía
-                </span>
-              )}
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleAutoCheckUpdates(!autoCheckUpdates);
+                }}
+                className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer shrink-0 ml-2 ${autoCheckUpdates ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                title="Activar o desactivar búsqueda automática"
+              >
+                <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform ${autoCheckUpdates ? 'translate-x-3.5' : 'translate-x-0'}`} />
+              </button>
+            </div>
           </div>
 
           {/* Multiperfil & Switcher de Perfil */}

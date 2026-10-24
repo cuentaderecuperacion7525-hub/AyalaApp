@@ -1,0 +1,9 @@
+{
+	"appId": "com.famichat.app",
+	"appName": "FamiChat",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	}
+}

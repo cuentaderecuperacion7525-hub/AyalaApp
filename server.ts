@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
-import { Contact, Message } from "./src/types";
+import type { Contact, Message } from "./src/types.ts";
 import webPush from "web-push";
 
 // Setup storage and fallback in /tmp for persistence on Cloud Run bounds

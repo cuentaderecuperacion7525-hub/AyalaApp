@@ -11,10 +11,15 @@ import { PinModal } from './components/PinModal';
 import { MoreMenu } from './components/MoreMenu';
 import { WelcomeGateway } from './components/WelcomeGateway';
 import { CreditsModal } from './components/CreditsModal';
+import { SplashScreen } from './components/SplashScreen';
+import { UpdateModal } from './components/UpdateModal';
+import { APP_VERSION, fetchLatestRelease, ReleaseInfo } from './config/version';
 import { playSendSound, playNotificationSound } from './utils/audio';
 import { 
   Volume2, VolumeX, MessageSquare, AlertCircle, RefreshCw, Radio, Smartphone
 } from 'lucide-react';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 
 // Helper function to safely parse a public VAPID key into browser-supported Uint8Array format
 function urlBase64ToUint8Array(base64String: string) {
@@ -69,6 +74,7 @@ export default function App() {
       setShowCreditsModal(false);
       setShowPwaModal(false);
       setShowIdentityPinModal(false);
+      setShowUpdateModal(false);
     }
   }, [activeUser]);
 
@@ -84,6 +90,7 @@ export default function App() {
         setShowCreditsModal(false);
         setShowPwaModal(false);
         setShowIdentityPinModal(false);
+        setShowUpdateModal(false);
       } else {
         const view = state.view;
         setShowMoreMenu(view === 'menu');
@@ -91,6 +98,7 @@ export default function App() {
         setShowCreditsModal(view === 'credits');
         setShowPwaModal(view === 'pwa_modal');
         setShowIdentityPinModal(view === 'pin_modal');
+        setShowUpdateModal(view === 'update_modal');
         
         if (view === 'chat') {
           setMobileView('chat');
@@ -110,6 +118,7 @@ export default function App() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
+
 
   // Whenever mobileView changes programmatically:
   const handleSetMobileView = useCallback((view: 'list' | 'chat') => {
@@ -176,6 +185,48 @@ export default function App() {
   const [isSwitcherUnlocked, setIsSwitcherUnlocked] = useState<boolean>(false);
   const [pinAction, setPinAction] = useState<'unlock_switcher' | 'back_to_selection' | null>(null);
 
+  // App version and GitHub update states
+  const [hasUpdate, setHasUpdate] = useState<boolean>(false);
+  const [latestRelease, setLatestRelease] = useState<ReleaseInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
+  const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
+  const [autoCheckUpdates, setAutoCheckUpdates] = useState<boolean>(() => {
+    return localStorage.getItem('famichat_auto_check_updates') !== 'false';
+  });
+
+  const handleToggleAutoCheckUpdates = (val: boolean) => {
+    setAutoCheckUpdates(val);
+    localStorage.setItem('famichat_auto_check_updates', val ? 'true' : 'false');
+  };
+
+  // Hardware Android back button support via Capacitor
+  useEffect(() => {
+    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      const backListener = CapApp.addListener('backButton', () => {
+        const currentView = window.history.state?.view;
+        const hasOverlayOpen = 
+          showMoreMenu || 
+          showFaqGuide || 
+          showCreditsModal || 
+          showPwaModal || 
+          showIdentityPinModal || 
+          showUpdateModal ||
+          showChatInfo || 
+          mobileView === 'chat';
+
+        if (hasOverlayOpen || (currentView && currentView !== 'list')) {
+          window.history.back();
+        } else {
+          CapApp.exitApp();
+        }
+      });
+
+      return () => {
+        backListener.then(l => l.remove());
+      };
+    }
+  }, [showMoreMenu, showFaqGuide, showCreditsModal, showPwaModal, showIdentityPinModal, showUpdateModal, showChatInfo, mobileView]);
+
   // Monitor browser's native PWA install availability
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {
@@ -200,9 +251,102 @@ export default function App() {
     };
   }, []);
 
+  // Check for updates once on startup in background without blocking load
+  useEffect(() => {
+    let isCancelled = false;
+
+    const runAutoCheck = async () => {
+      const isAutoEnabled = localStorage.getItem('famichat_auto_check_updates') !== 'false';
+      if (!isAutoEnabled) return;
+
+      // Never check while user is inside a chat
+      if (mobileView === 'chat') return;
+
+      const result = await fetchLatestRelease();
+      if (isCancelled) return;
+
+      if (result.success && result.hasUpdate && result.release) {
+        setHasUpdate(true);
+        setLatestRelease(result.release);
+
+        const lastDismissedVersion = localStorage.getItem('famichat_dismissed_update_version');
+        
+        // Show automatically only if on list view and not already dismissed for this version
+        if (lastDismissedVersion !== result.release.version && mobileView === 'list') {
+          window.history.pushState({ view: 'update_modal' }, '');
+          setShowUpdateModal(true);
+        }
+      }
+    };
+
+    const timer = setTimeout(runAutoCheck, 1200);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const handleManualCheckUpdates = async () => {
+    setCheckingUpdate(true);
+    const result = await fetchLatestRelease();
+    setCheckingUpdate(false);
+
+    if (result.success) {
+      if (result.hasUpdate && result.release) {
+        setHasUpdate(true);
+        setLatestRelease(result.release);
+        window.history.pushState({ view: 'update_modal' }, '');
+        setShowUpdateModal(true);
+      } else {
+        setHasUpdate(false);
+        const toast: LocalNotification = {
+          id: 'update-uptodate-' + Date.now(),
+          title: 'FamiChat al día ✅',
+          body: 'Estás al día',
+          avatarEmoji: '✅',
+          avatarColor: 'bg-emerald-600',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setNotifications(prev => [toast, ...prev.slice(0, 2)]);
+      }
+    } else {
+      const toast: LocalNotification = {
+        id: 'update-error-' + Date.now(),
+        title: 'Actualizaciones ⚠️',
+        body: result.errorMessage || 'No se pudo comprobar. Revisa tu conexión.',
+        avatarEmoji: '⚠️',
+        avatarColor: 'bg-amber-600',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setNotifications(prev => [toast, ...prev.slice(0, 2)]);
+    }
+  };
+
+  const handleUpdateNow = () => {
+    if (latestRelease?.downloadUrl) {
+      window.open(latestRelease.downloadUrl, '_blank');
+    }
+    if (window.history.state?.view === 'update_modal') {
+      window.history.back();
+    } else {
+      setShowUpdateModal(false);
+    }
+  };
+
+  const handleDismissUpdate = () => {
+    if (latestRelease?.version) {
+      localStorage.setItem('famichat_dismissed_update_version', latestRelease.version);
+    }
+    if (window.history.state?.view === 'update_modal') {
+      window.history.back();
+    } else {
+      setShowUpdateModal(false);
+    }
+  };
+
   // Check if Web Push has browser support
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
       setPushSupported(true);
     }
   }, []);
@@ -267,8 +411,32 @@ export default function App() {
   }, [pushSupported, activeUser?.id]);
 
   const subscribeUserToPush = async (userId: string) => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.warn('Push Notifications are not supported by this browser.');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      console.warn('Push Notifications are not supported by this browser/environment.');
+      const toast: LocalNotification = {
+        id: 'push-not-supported-' + Date.now(),
+        title: 'Aviso del Sistema ℹ️',
+        body: 'Tu navegador actual no admite notificaciones push en segundo plano.',
+        avatarEmoji: 'ℹ️',
+        avatarColor: 'bg-slate-600',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setNotifications(prev => [toast, ...prev.slice(0, 2)]);
+      return;
+    }
+
+    // If permission was already denied by the user or browser iframe policy
+    if (Notification.permission === 'denied') {
+      const toast: LocalNotification = {
+        id: 'push-denied-' + Date.now(),
+        title: 'Permiso Denegado 🔕',
+        body: 'El navegador tiene bloqueadas las notificaciones. Para activarlas, permite los avisos desde el candado o configuración del sitio.',
+        avatarEmoji: '🔕',
+        avatarColor: 'bg-amber-600',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setNotifications(prev => [toast, ...prev.slice(0, 2)]);
+      setPushEnabled(false);
       return;
     }
 
@@ -279,14 +447,37 @@ export default function App() {
       // 1. Fetch public VAPID key from server
       const keyRes = await fetch('/api/push-public-key');
       if (!keyRes.ok) {
-        throw new Error('No se pudo obtener la clave pública VAPID del servidor');
+        throw new Error('No se pudo obtener la clave de notificaciones del servidor');
       }
       const { publicKey } = await keyRes.json();
 
-      // 2. Request Notification Permission
-      const permission = await Notification.requestPermission();
+      // 2. Request Notification Permission gracefully
+      let permission: NotificationPermission = 'default';
+      try {
+        permission = await Notification.requestPermission();
+      } catch (permErr) {
+        console.warn('Notification.requestPermission failed (iframe or sandbox constraint):', permErr);
+        permission = 'denied';
+      }
+
+      if (permission === 'denied') {
+        const toast: LocalNotification = {
+          id: 'push-denied-' + Date.now(),
+          title: 'Permiso Denegado 🔕',
+          body: 'El navegador rechazó el permiso de notificaciones push. Puedes habilitarlo en los ajustes del navegador.',
+          avatarEmoji: '🔕',
+          avatarColor: 'bg-amber-600',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setNotifications(prev => [toast, ...prev.slice(0, 2)]);
+        setPushEnabled(false);
+        return;
+      }
+
       if (permission !== 'granted') {
-        throw new Error('Permiso de notificaciones denegado por el navegador');
+        // User dismissed the prompt without choosing
+        setPushEnabled(false);
+        return;
       }
 
       // 3. Subscribe with the PushManager
@@ -323,14 +514,13 @@ export default function App() {
       };
       setNotifications(prev => [toast, ...prev.slice(0, 2)]);
     } catch (error: any) {
-      console.error('Error enabling push notifications:', error);
-      // Local Notification block
+      console.warn('Push notifications subscription info:', error?.message || error);
       const toast: LocalNotification = {
-        id: 'push-error-' + Date.now(),
-        title: 'Error de Notificación ⚠️',
-        body: error.message || 'No se pudieron activar las notificaciones push.',
-        avatarEmoji: '⚠️',
-        avatarColor: 'bg-rose-500',
+        id: 'push-info-' + Date.now(),
+        title: 'Aviso de Notificaciones ℹ️',
+        body: error.message || 'No se pudieron activar las notificaciones push en este entorno.',
+        avatarEmoji: 'ℹ️',
+        avatarColor: 'bg-slate-600',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setNotifications(prev => [toast, ...prev.slice(0, 2)]);
@@ -372,7 +562,7 @@ export default function App() {
       };
       setNotifications(prev => [toast, ...prev.slice(0, 2)]);
     } catch (e) {
-      console.error("Error unsubscribing from push:", e);
+      console.warn("Unsubscribe push notice:", e);
     } finally {
       setSubscribingPush(false);
     }
@@ -452,8 +642,11 @@ export default function App() {
               
               const newMsgs = lastPrevIndex !== -1 ? list.slice(lastPrevIndex + 1) : list;
               
-              // Filter messages NOT written by us
-              const externalMsgs = newMsgs.filter((m: Message) => m.senderId !== activeUser.id);
+              // Filter incoming messages intended strictly for the active user or family group
+              const externalMsgs = newMsgs.filter((m: Message) => 
+                m.senderId !== activeUser.id && 
+                (m.receiverId === 'family-group' || m.receiverId === activeUser.id)
+              );
               if (externalMsgs.length > 0) {
                 // Play notification alert for first incoming message
                 const leadMsg = externalMsgs[externalMsgs.length - 1];
@@ -797,6 +990,10 @@ export default function App() {
 
   const activeTypingLabel = getTypingIndicatorText();
 
+  if (loading) {
+    return <SplashScreen darkMode={darkMode} />;
+  }
+
   if (!activeUser) {
     return (
       <WelcomeGateway 
@@ -866,18 +1063,18 @@ export default function App() {
                     subscribeUserToPush(activeUser.id);
                   }
                 }}
-                onTriggerPwa={() => {
-                  window.history.pushState({ view: 'pwa_modal' }, '');
-                  setShowPwaModal(true);
-                }}
-                isInstallable={isInstallable}
+                hasUpdate={hasUpdate}
+                onCheckUpdates={handleManualCheckUpdates}
+                autoCheckUpdates={autoCheckUpdates}
+                onToggleAutoCheckUpdates={handleToggleAutoCheckUpdates}
+                checkingUpdate={checkingUpdate}
                 isOpen={showMoreMenu}
                 onOpenChange={(open) => {
                   if (open) {
                     window.history.pushState({ view: 'menu' }, '');
                     setShowMoreMenu(true);
                   } else {
-                    if (window.history.state?.view === 'menu' || window.history.state?.view === 'faq' || window.history.state?.view === 'credits' || window.history.state?.view === 'pwa_modal' || window.history.state?.view === 'pin_modal') {
+                    if (window.history.state?.view === 'menu' || window.history.state?.view === 'faq' || window.history.state?.view === 'credits' || window.history.state?.view === 'pwa_modal' || window.history.state?.view === 'pin_modal' || window.history.state?.view === 'update_modal') {
                       window.history.back();
                     } else {
                       setShowMoreMenu(false);
@@ -914,10 +1111,7 @@ export default function App() {
 
         {/* Main Interface Content block */}
         {loading ? (
-          <div id="loader-fallback" className="flex-1 bg-white flex flex-col items-center justify-center p-8 select-none gap-3">
-            <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <span className="font-bold text-slate-800 text-xs text-center">Conectando a FamiChat...</span>
-          </div>
+          <SplashScreen darkMode={darkMode} />
         ) : (
           <main className="flex-1 flex overflow-hidden relative bg-slate-50">
             
@@ -1040,6 +1234,14 @@ export default function App() {
               setShowCreditsModal(false);
             }
           }}
+        />
+
+        {/* GitHub Native APK Update Dialog */}
+        <UpdateModal
+          isOpen={showUpdateModal}
+          release={latestRelease}
+          onClose={handleDismissUpdate}
+          onUpdateNow={handleUpdateNow}
         />
         
         {/* Soft simulated physical home pill bar at the bottom center of the screen mockup */}

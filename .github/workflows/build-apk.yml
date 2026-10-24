@@ -1,0 +1,95 @@
+name: Build FamiChat Native Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Tipo de compilación (debug o release)'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+
+jobs:
+  build:
+    name: Build Native Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: 📦 Instalar dependencias web
+        run: npm ci || npm install --legacy-peer-deps
+
+      - name: 🏗️ Compilar frontend web (Vite)
+        run: npm run build
+
+      - name: ☕ Configurar Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: 📱 Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🔄 Sincronizar proyecto nativo con Capacitor
+        run: npx cap sync android
+
+      - name: 🔑 Dar permisos de ejecución a Gradle
+        run: chmod +x ./android/gradlew
+
+      - name: 🔨 Compilar APK Android
+        run: |
+          cd android
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+            ./gradlew assembleRelease --stacktrace
+          else
+            ./gradlew assembleDebug --stacktrace
+          fi
+
+      - name: 📦 Preparar archivo APK
+        id: prepare_apk
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          echo "Encontrado APK en: $APK_PATH"
+          mkdir -p release-output
+          cp "$APK_PATH" release-output/FamiChat.apk
+
+      - name: 🚀 Subir APK como artefacto de GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: FamiChat-Android-APK
+          path: release-output/FamiChat.apk
+          retention-days: 30
+
+      - name: 🏷️ Publicar Release en GitHub
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: FamiChat APK v1.0.${{ github.run_number }}
+          body: |
+            ### 📱 FamiChat APK Nativa para Android
+            Compilación automática generada con éxito desde GitHub Actions.
+            
+            - **Versión**: 1.0.${{ github.run_number }}
+            - **Archivo**: `FamiChat.apk`
+            - **Compatibilidad**: Android 7.0+ (API 24 o superior)
+            
+            Descarga el archivo adjunto `FamiChat.apk` e instálalo directamente en tu teléfono Android.
+          files: release-output/FamiChat.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
