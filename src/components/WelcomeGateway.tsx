@@ -56,49 +56,61 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
     setPinError('');
   };
 
+  const KEYPAD_KEYS = [
+    { num: '1', letters: '' },
+    { num: '2', letters: 'ABC' },
+    { num: '3', letters: 'DEF' },
+    { num: '4', letters: 'GHI' },
+    { num: '5', letters: 'JKL' },
+    { num: '6', letters: 'MNO' },
+    { num: '7', letters: 'PQRS' },
+    { num: '8', letters: 'TUV' },
+    { num: '9', letters: 'WXYZ' },
+  ];
+
   return (
     <div 
       id="welcome-identity-gateway" 
-      className="fixed inset-0 bg-slate-900 bg-gradient-to-tr from-slate-950 via-teal-950 to-emerald-950 text-white z-[99999] flex flex-col justify-between overflow-y-auto px-4 pt-[calc(var(--sat,0px)+1.5rem)] md:pt-8 pb-8 select-none"
+      className="fixed inset-0 h-[100dvh] w-full bg-slate-900 bg-gradient-to-tr from-slate-950 via-teal-950 to-emerald-950 text-white z-[99999] flex flex-col justify-between items-center overflow-y-auto px-4 pt-[calc(var(--sat,0px)+0.75rem)] md:pt-6 pb-[calc(var(--sab,0px)+0.5rem)] md:pb-6 select-none"
     >
       {/* Top ambient brand head */}
-      <div className="text-center pt-4 animate-fade-in">
-        <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1.5 rounded-full mb-3 text-[11px] font-bold tracking-[0.2em] text-emerald-300 uppercase">
+      <div className="text-center shrink-0 animate-fade-in">
+        <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-3 py-0.5 rounded-full mb-1 text-[9.5px] font-bold tracking-[0.16em] text-emerald-300 uppercase">
           🛡️ Red Familiar Privada
         </div>
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-150 via-teal-100 to-emerald-300 font-sans">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-150 via-teal-100 to-emerald-300 font-sans leading-tight">
           FamiChat
         </h1>
-        <p className="text-[12px] text-teal-300/80 font-serif italic mt-0.5">by Martinez Alejandro</p>
+        <p className="text-[10.5px] text-teal-300/80 font-serif italic">by Martinez Alejandro</p>
       </div>
 
       {/* Center Dynamic Card Container */}
-      <div className="w-full max-w-md mx-auto my-6 flex flex-col items-center">
+      <div className="w-full max-w-[340px] sm:max-w-sm mx-auto my-1.5 flex flex-col items-center shrink-0">
         {!selectedCandidate ? (
           /* Selection Screen State */
-          <div className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 sm:p-8 shadow-[0_24px_64px_rgba(0,0,0,0.5)] space-y-6 animate-scale-up">
-            <div className="text-center space-y-1.5">
-              <h2 className="text-lg font-extrabold text-white text-center">¿Quién está ingresando hoy?</h2>
-              <p className="text-xs text-white/60 leading-normal max-w-[280px] mx-auto text-center">
+          <div className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-4 sm:p-6 shadow-[0_24px_64px_rgba(0,0,0,0.5)] space-y-3.5 animate-scale-up">
+            <div className="text-center space-y-1">
+              <h2 className="text-base sm:text-lg font-extrabold text-white text-center">¿Quién está ingresando hoy?</h2>
+              <p className="text-[11px] text-white/60 leading-snug max-w-[250px] mx-auto text-center">
                 Selecciona tu perfil para cargar tus mensajes privados y notas familiares del teléfono.
               </p>
             </div>
 
             {/* Avatars Listing Grid */}
-            <div className="grid grid-cols-2 gap-3 pb-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {contacts.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => handleSelect(c)}
-                  className="group relative flex flex-col items-center p-4 bg-white/[0.03] hover:bg-white/[0.12] border border-white/5 hover:border-emerald-500/30 rounded-2xl transition-all cursor-pointer shadow-sm text-center active:scale-95 duration-2 *; focus:outline-none"
+                  className="group relative flex flex-col items-center p-3 bg-white/[0.03] hover:bg-white/[0.12] border border-white/5 hover:border-emerald-500/30 rounded-2xl transition-all cursor-pointer shadow-sm text-center active:scale-95 focus:outline-none"
                 >
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-lg border border-white/10 group-hover:scale-105 duration-200 transition-all ${c.avatarColor}`}>
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shadow-lg border border-white/10 group-hover:scale-105 duration-200 transition-all ${c.avatarColor}`}>
                     {c.avatarEmoji}
                   </div>
-                  <span className="font-extrabold text-xs text-white/95 mt-3 block truncate max-w-full">
+                  <span className="font-extrabold text-[11.5px] text-white/95 mt-2 block truncate max-w-full">
                     {c.name}
                   </span>
-                  <span className="text-[9.5px] text-teal-300/70 font-medium block truncate max-w-full italic">
+                  <span className="text-[9px] text-teal-300/70 font-medium block truncate max-w-full italic">
                     {c.relationship} {c.role === 'admin' && '★'}
                   </span>
 
@@ -112,37 +124,37 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
             </div>
           </div>
         ) : (
-          /* PIN Challenge Challenge Screen State for Admin only */
-          <div className="w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-[0_24px_64px_rgba(0,0,0,0.8)] space-y-5 animate-scale-up relative">
+          /* PIN Challenge Screen State for Admin only */
+          <div className="w-full bg-slate-900 border border-slate-800 rounded-3xl px-4 py-3.5 sm:p-5 shadow-[0_24px_64px_rgba(0,0,0,0.8)] space-y-2.5 animate-scale-up relative">
             <button
               onClick={() => setSelectedCandidate(null)}
-              className="absolute left-4 top-4 text-slate-400 hover:text-white flex items-center gap-1.5 text-xs font-bold bg-white/5 px-2.5 py-1 rounded-xl transition-all cursor-pointer"
+              className="absolute left-3.5 top-3.5 text-slate-400 hover:text-white flex items-center gap-1 text-[11px] font-bold bg-white/5 px-2.5 py-1 rounded-xl transition-all cursor-pointer"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-3 h-3" />
               <span>Volver</span>
             </button>
 
-            <div className="flex flex-col items-center text-center space-y-3 pt-6">
-              <div className={`w-16 h-16 rounded-3xl flex items-center justify-center text-4xl shadow-md border border-white/10 ${selectedCandidate.avatarColor}`}>
+            <div className="flex flex-col items-center text-center space-y-1 pt-1">
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shadow-md border border-white/10 ${selectedCandidate.avatarColor}`}>
                 {selectedCandidate.avatarEmoji}
               </div>
-              <div className="space-y-1">
-                <h3 className="font-extrabold text-white text-base">{selectedCandidate.name}</h3>
-                <p className="text-[11px] text-amber-400 font-semibold tracking-wider uppercase flex items-center gap-1.5 justify-center">
-                  <Lock className="w-3.5 h-3.5" />
+              <div className="space-y-0.5">
+                <h3 className="font-extrabold text-white text-sm">{selectedCandidate.name}</h3>
+                <p className="text-[9px] text-amber-400 font-semibold tracking-wider uppercase flex items-center gap-1 justify-center">
+                  <Lock className="w-2.5 h-2.5" />
                   <span>Acceso Protegido de Administrador</span>
                 </p>
               </div>
             </div>
 
             {/* Display digits filled dots */}
-            <div className="flex justify-center gap-4 py-1">
+            <div className="flex justify-center gap-3 py-0.5">
               {[0, 1, 2, 3].map((idx) => (
                 <div
                   key={idx}
-                  className={`w-4.5 h-4.5 rounded-full border-2 transition-all duration-150 ${
+                  className={`w-3 h-3 rounded-full border-2 transition-all duration-150 ${
                     idx < pinCode.length
-                      ? 'bg-emerald-450 border-emerald-400 scale-110 shadow-[0_0_12px_#34d399]'
+                      ? 'bg-emerald-450 border-emerald-400 scale-110 shadow-[0_0_10px_#34d399]'
                       : 'border-slate-700 bg-transparent'
                   }`}
                 />
@@ -150,43 +162,48 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
             </div>
 
             {pinError && (
-              <div className="flex items-center gap-1.5 text-xs text-rose-300 font-semibold bg-rose-950/40 border border-rose-800 rounded-xl px-3 py-2 animate-pulse justify-center text-center">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <div className="flex items-center gap-1.5 text-[10.5px] text-rose-300 font-semibold bg-rose-950/40 border border-rose-800 rounded-xl px-2.5 py-1 animate-pulse justify-center text-center">
+                <AlertCircle className="w-3 h-3 shrink-0" />
                 <span>{pinError}</span>
               </div>
             )}
 
             {isSuccess && (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-bold bg-emerald-950/40 border border-emerald-800 rounded-xl px-3 py-2 animate-bounce justify-center text-center">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-300 font-bold bg-emerald-950/40 border border-emerald-800 rounded-xl px-2.5 py-1 animate-bounce justify-center text-center">
+                <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
                 <span>Llave Correcta. Iniciando...</span>
               </div>
             )}
 
-            {/* Customized Lock Security Numeric Keypad */}
-            <div className="grid grid-cols-3 gap-2.5 max-w-[280px] mx-auto pt-2">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+            {/* Compact Alphanumeric Lock Security Keypad */}
+            <div className="grid grid-cols-3 gap-1.5 max-w-[205px] mx-auto pt-0.5">
+              {KEYPAD_KEYS.map(({ num, letters }) => (
                 <button
                   key={num}
                   disabled={isSuccess}
                   onClick={() => handleKeypadPress(num)}
-                  className="aspect-square bg-slate-800 hover:bg-slate-750 active:bg-slate-700 text-white font-black text-xl rounded-2xl flex items-center justify-center transition-colors cursor-pointer focus:outline-none border border-slate-750 select-none"
+                  className="h-10 sm:h-11 bg-slate-800 hover:bg-slate-750 active:bg-slate-700 text-white rounded-xl flex flex-col items-center justify-center transition-colors cursor-pointer focus:outline-none border border-slate-700/80 select-none shadow-sm"
                 >
-                  {num}
+                  <span className="font-black text-sm sm:text-base leading-none">{num}</span>
+                  <span className="text-[7.5px] font-bold tracking-[0.15em] text-slate-400 leading-none mt-0.5 uppercase">
+                    {letters || '\u00A0'}
+                  </span>
                 </button>
               ))}
               <div />
               <button
                 disabled={isSuccess}
                 onClick={() => handleKeypadPress('0')}
-                className="aspect-square bg-slate-800 hover:bg-slate-750 active:bg-slate-700 text-white font-black text-xl rounded-2xl flex items-center justify-center transition-colors cursor-pointer focus:outline-none border border-slate-750 select-none"
+                className="h-10 sm:h-11 bg-slate-800 hover:bg-slate-750 active:bg-slate-700 text-white rounded-xl flex flex-col items-center justify-center transition-colors cursor-pointer focus:outline-none border border-slate-700/80 select-none shadow-sm"
               >
-                0
+                <span className="font-black text-sm sm:text-base leading-none">0</span>
+                <span className="text-[7.5px] font-bold tracking-widest text-slate-400 leading-none mt-0.5">+</span>
               </button>
               <button
                 disabled={isSuccess}
                 onClick={handleBackspace}
-                className="aspect-square bg-slate-850 hover:bg-slate-800 active:bg-slate-750 text-slate-400 hover:text-white font-bold text-xs rounded-2xl flex items-center justify-center transition-all cursor-pointer focus:outline-none select-none"
+                className="h-10 sm:h-11 bg-slate-850 hover:bg-slate-800 active:bg-slate-750 text-slate-400 hover:text-white font-bold text-sm rounded-xl flex items-center justify-center transition-all cursor-pointer focus:outline-none border border-slate-800 select-none"
+                title="Borrar"
               >
                 ⌫
               </button>
@@ -196,7 +213,7 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
       </div>
 
       {/* Low-profile secure credits legend at the bottom */}
-      <div className="text-center text-[10px] text-white/30 pt-4 font-medium select-none">
+      <div className="text-center text-[9.5px] text-white/35 pb-0.5 font-medium select-none shrink-0">
         Encriptación local activa • FamiChat Martínez r2.7
       </div>
     </div>
