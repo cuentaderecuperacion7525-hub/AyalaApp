@@ -514,7 +514,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       />
 
       {/* Dynamic Header */}
-      <div id="chat-header-banner" className="bg-slate-50 border-b border-slate-200 p-3 flex items-center justify-between shadow-sm z-10 select-none">
+      <div id="chat-header-banner" className="bg-slate-50 border-b border-slate-200 px-3 pt-[calc(var(--sat,0px)+0.75rem)] md:pt-3 pb-3 flex items-center justify-between shadow-sm z-10 select-none">
         <div className="flex items-center gap-2.5 min-w-0">
           
           {/* Mobile Back navigation button */}
@@ -1282,7 +1282,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* DETAILS RIGHT SIDEBAR PANEL */}
       {showMemberInfo && (
-        <div id="chat-partner-info-sidebar" className="absolute top-16 right-0 bottom-0 bg-white shadow-2xl border-l border-slate-200 w-full sm:w-[310px] z-15 flex flex-col p-5 overflow-y-auto animate-slide-in-right">
+        <div id="chat-partner-info-sidebar" className="absolute top-[calc(var(--sat,0px)+3.75rem)] md:top-16 right-0 bottom-0 bg-white shadow-2xl border-l border-slate-200 w-full sm:w-[310px] z-15 flex flex-col p-5 overflow-y-auto animate-slide-in-right">
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4 select-none">
             <h3 className="font-bold text-slate-800 text-sm tracking-wide">Detalles de la Red</h3>
             <button 

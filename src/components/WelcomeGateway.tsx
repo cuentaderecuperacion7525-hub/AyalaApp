@@ -59,7 +59,7 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
   return (
     <div 
       id="welcome-identity-gateway" 
-      className="fixed inset-0 bg-slate-900 bg-gradient-to-tr from-slate-950 via-teal-950 to-emerald-950 text-white z-[99999] flex flex-col justify-between overflow-y-auto px-4 py-8 select-none"
+      className="fixed inset-0 bg-slate-900 bg-gradient-to-tr from-slate-950 via-teal-950 to-emerald-950 text-white z-[99999] flex flex-col justify-between overflow-y-auto px-4 pt-[calc(var(--sat,0px)+1.5rem)] md:pt-8 pb-8 select-none"
     >
       {/* Top ambient brand head */}
       <div className="text-center pt-4 animate-fade-in">

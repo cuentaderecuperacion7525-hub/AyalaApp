@@ -61,6 +61,15 @@ export default function App() {
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   const [showChatInfo, setShowChatInfo] = useState<boolean>(false);
 
+  // Auto-detect native Capacitor environment or Android device to apply safe area offsets
+  useEffect(() => {
+    const isNative = Capacitor.isNativePlatform();
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isNative || isAndroid) {
+      document.documentElement.classList.add('is-native-android');
+    }
+  }, []);
+
   // Auto-push baseline state when active user is logged in
   useEffect(() => {
     if (activeUser) {
@@ -1024,7 +1033,7 @@ export default function App() {
 
         {/* Global Brand Navigation Bar with options in the green section */}
         {mobileView !== 'chat' && (
-          <header className="bg-emerald-700 text-white px-3 sm:px-4 py-2.5 flex items-center justify-between shadow-md z-20 select-none shrink-0 border-b border-emerald-600/35">
+          <header className="bg-emerald-700 text-white px-3 sm:px-4 pt-[calc(var(--sat,0px)+0.625rem)] md:pt-2.5 pb-2.5 flex items-center justify-between shadow-md z-20 select-none shrink-0 border-b border-emerald-600/35">
             <div className="flex items-center gap-2 min-w-0">
               <div className="bg-white/10 p-1.5 rounded-xl border border-white/10 shrink-0 flex items-center justify-center">
                 <FamiChatLogo className="w-4.5 h-4.5 text-teal-350" />

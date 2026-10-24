@@ -129,7 +129,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
       {isOpen && (
         <div 
           id="header-kebab-dropdown" 
-          className="absolute right-0 top-10 w-72 max-h-[calc(100dvh-85px)] md:max-h-[min(580px,calc(92vh-85px))] overflow-y-auto overscroll-contain custom-scrollbar bg-white rounded-2xl shadow-[0_12px_36px_-6px_rgba(0,0,0,0.22)] border border-slate-150 py-3 z-50 text-slate-800 animate-fade-in flex flex-col gap-2"
+          className="absolute right-0 top-full mt-2 w-72 max-h-[calc(100dvh-var(--sat,0px)-85px)] md:max-h-[min(580px,calc(92vh-85px))] overflow-y-auto overscroll-contain custom-scrollbar bg-white rounded-2xl shadow-[0_12px_36px_-6px_rgba(0,0,0,0.22)] border border-slate-150 py-3 z-50 text-slate-800 animate-fade-in flex flex-col gap-2"
           style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
         >
           {/* Active Profile Info Header Card inside menu */}
