@@ -23,11 +23,11 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 
 // server.ts
 var import_express = __toESM(require("express"), 1);
+var import_vite = require("vite");
 var import_path = __toESM(require("path"), 1);
 var import_fs = __toESM(require("fs"), 1);
-var import_vite = require("vite");
 var import_web_push = __toESM(require("web-push"), 1);
-var DB_FILE = import_path.default.join(process.cwd(), "famichat_db.json");
+var DB_FILE = import_path.default.resolve(process.cwd(), "famichat_db.json");
 var INITIAL_CONTACTS = [
   {
     id: "papa-jose",
@@ -36,9 +36,9 @@ var INITIAL_CONTACTS = [
     avatarColor: "bg-teal-600",
     relationship: "Pap\xE1 (Admin)",
     role: "admin",
-    isOnline: true,
-    lastActive: "En l\xEDnea",
-    lastActiveTimestamp: Date.now(),
+    isOnline: false,
+    lastActive: "Sin conexi\xF3n registrada",
+    lastActiveTimestamp: void 0,
     phone: "+56 9 1234 5678"
   },
   {
@@ -48,9 +48,9 @@ var INITIAL_CONTACTS = [
     avatarColor: "bg-rose-500",
     relationship: "Mam\xE1",
     role: "member",
-    isOnline: true,
-    lastActive: "En l\xEDnea",
-    lastActiveTimestamp: Date.now(),
+    isOnline: false,
+    lastActive: "Sin conexi\xF3n registrada",
+    lastActiveTimestamp: void 0,
     phone: "+56 9 8765 4321"
   },
   {
@@ -61,9 +61,8 @@ var INITIAL_CONTACTS = [
     relationship: "Hijo",
     role: "member",
     isOnline: false,
-    lastActive: "\xDAlt. vez hoy a las 18:15",
-    lastActiveTimestamp: Date.now() - 40 * 60 * 1e3,
-    // 40 minutes ago
+    lastActive: "Sin conexi\xF3n registrada",
+    lastActiveTimestamp: void 0,
     phone: "+56 9 5555 1212"
   },
   {
@@ -74,312 +73,308 @@ var INITIAL_CONTACTS = [
     relationship: "Hijo",
     role: "member",
     isOnline: false,
-    lastActive: "\xDAlt. vez hoy a las 17:40",
-    lastActiveTimestamp: Date.now() - 150 * 60 * 1e3,
-    // 2.5 hours ago
+    lastActive: "Sin conexi\xF3n registrada",
+    lastActiveTimestamp: void 0,
     phone: "+56 9 7777 3434"
   }
 ];
-var getBaselineMessages = () => {
-  const dateOffset = (minsAgo) => {
-    const d = /* @__PURE__ */ new Date();
-    d.setMinutes(d.getMinutes() - minsAgo);
-    return d.toISOString();
-  };
-  return [
-    {
-      id: "g1",
-      senderId: "mama-tila",
-      senderName: "Mam\xE1 Tila del Carmen",
-      receiverId: "family-group",
-      text: "\xA1Hola familia hermosa! \xBFC\xF3mo va su d\xEDa? \u2764\uFE0F",
-      timestamp: dateOffset(60),
-      status: "read"
-    },
-    {
-      id: "g2",
-      senderId: "hijo-christian",
-      senderName: "Christian Fernando",
-      receiverId: "family-group",
-      text: "Todo bien mam\xE1, saliendo de una clase. \xA1Qu\xE9 tal ustedes!",
-      timestamp: dateOffset(55),
-      status: "read"
-    },
-    {
-      id: "g3",
-      senderId: "hijo-cristopher",
-      senderName: "Cristopher",
-      receiverId: "family-group",
-      text: "Holaaa, yo acabo de terminar mis tareas, \xBFya van a almorzar? \u{1F60B}",
-      timestamp: dateOffset(50),
-      status: "read"
-    },
-    {
-      id: "g4",
-      senderId: "papa-jose",
-      senderName: "Pap\xE1 Jos\xE9 Manuel",
-      receiverId: "family-group",
-      text: "Hola a todos. Acabo de salir de una reuni\xF3n. Tila, al rato te marco para ver lo de la comida. Abrazo a mis muchachos.",
-      timestamp: dateOffset(45),
-      status: "read"
-    },
-    {
-      id: "g5",
-      senderId: "mama-tila",
-      senderName: "Mam\xE1 Tila del Carmen",
-      receiverId: "family-group",
-      text: "Sii Jos\xE9, prepar\xE9 cazuelita rica. Los espero a los tres en casa. \u{1F372}",
-      timestamp: dateOffset(40),
-      status: "read"
-    }
-  ];
-};
-var db = {
-  contacts: INITIAL_CONTACTS,
-  messages: getBaselineMessages(),
-  pushSubscriptions: []
-};
 function loadDB() {
   try {
     if (import_fs.default.existsSync(DB_FILE)) {
-      const parsed = JSON.parse(import_fs.default.readFileSync(DB_FILE, "utf-8"));
-      if (parsed.contacts && parsed.messages) {
-        db = parsed;
+      const raw = import_fs.default.readFileSync(DB_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (!parsed.contacts || !Array.isArray(parsed.contacts) || parsed.contacts.length === 0) {
+        parsed.contacts = INITIAL_CONTACTS.map((c) => ({ ...c }));
+      } else {
+        const now = Date.now();
+        parsed.contacts = parsed.contacts.map((c) => {
+          const hasValidPastTimestamp = typeof c.lastActiveTimestamp === "number" && c.lastActiveTimestamp > 0 && c.lastActiveTimestamp <= now + 6e4;
+          return {
+            ...c,
+            isOnline: false,
+            lastActiveTimestamp: hasValidPastTimestamp ? c.lastActiveTimestamp : void 0,
+            lastActive: hasValidPastTimestamp ? c.lastActive : "Sin conexi\xF3n registrada"
+          };
+        });
       }
+      if (!Array.isArray(parsed.messages)) {
+        parsed.messages = [];
+      }
+      if (!Array.isArray(parsed.pushSubscriptions)) {
+        parsed.pushSubscriptions = [];
+      }
+      return parsed;
     }
   } catch (e) {
-    console.error("Failed to read server local filesystem DB, using in-memory state:", e);
+    console.error("Error loading DB file:", e);
   }
+  const initial = {
+    contacts: INITIAL_CONTACTS.map((c) => ({ ...c })),
+    messages: [],
+    pushSubscriptions: []
+  };
+  try {
+    import_fs.default.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Failed to write initial DB:", e);
+  }
+  return initial;
 }
+var db = loadDB();
 function saveDB() {
   try {
     import_fs.default.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
   } catch (e) {
-    console.error("Failed to write to file database:", e);
+    console.error("Error saving DB file:", e);
   }
 }
-loadDB();
-if (!db.pushSubscriptions) {
-  db.pushSubscriptions = [];
-}
-if (!db.vapidKeys) {
-  db.vapidKeys = import_web_push.default.generateVAPIDKeys();
+if (!db.vapidKeys || !db.vapidKeys.publicKey || !db.vapidKeys.privateKey) {
+  const generatedKeys = import_web_push.default.generateVAPIDKeys();
+  db.vapidKeys = {
+    publicKey: generatedKeys.publicKey,
+    privateKey: generatedKeys.privateKey
+  };
+  saveDB();
+} else {
   saveDB();
 }
 import_web_push.default.setVapidDetails(
-  "mailto:josemanuel5121@gmail.com",
+  "mailto:familia@famichat.app",
   db.vapidKeys.publicKey,
   db.vapidKeys.privateKey
 );
-function sendPushNotification(targetUserId, payload) {
-  if (!db.pushSubscriptions) return;
-  const userSubs = db.pushSubscriptions.filter((sub) => sub.userId === targetUserId);
-  if (userSubs.length === 0) return;
-  const payloadString = JSON.stringify(payload);
-  userSubs.forEach((userSub) => {
-    import_web_push.default.sendNotification(userSub.subscription, payloadString).catch((err) => {
-      console.error(`Error sending push notification to user ${targetUserId}:`, err);
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        db.pushSubscriptions = db.pushSubscriptions?.filter((sub) => sub.subscription.endpoint !== userSub.subscription.endpoint);
-        saveDB();
-      }
-    });
+async function sendPushNotificationsForMessage(msg) {
+  if (!db.pushSubscriptions || db.pushSubscriptions.length === 0) return;
+  const isGroup = msg.receiverId === "family-group";
+  const senderContact = db.contacts.find((c) => c.id === msg.senderId);
+  const emoji = senderContact?.avatarEmoji || "\u{1F4AC}";
+  const notificationTitle = isGroup ? `\u{1F3E1} Familia Unida (${msg.senderName.split(" ")[0]})` : `${emoji} ${msg.senderName}`;
+  let notificationBody = msg.text;
+  if (msg.messageType === "image") {
+    notificationBody = "\u{1F4F7} Envi\xF3 una foto compartida";
+  } else if (msg.messageType === "audio") {
+    notificationBody = "\u{1F399}\uFE0F Envi\xF3 una nota de voz familiar";
+  }
+  const targetRoomId = isGroup ? "family-group" : msg.senderId;
+  const payload = JSON.stringify({
+    title: notificationTitle,
+    body: notificationBody,
+    icon: "/favicon.svg",
+    badge: "/favicon.svg",
+    tag: `famichat-${targetRoomId}`,
+    url: `/?roomId=${targetRoomId}`,
+    timestamp: Date.now()
   });
+  const expiredEndpoints = [];
+  const sendPromises = db.pushSubscriptions.map(async (item) => {
+    if (item.userId === msg.senderId) return;
+    if (!isGroup && item.userId !== msg.receiverId) return;
+    try {
+      await import_web_push.default.sendNotification(item.subscription, payload);
+    } catch (err) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        expiredEndpoints.push(item.subscription.endpoint);
+      }
+    }
+  });
+  await Promise.allSettled(sendPromises);
+  if (expiredEndpoints.length > 0 && db.pushSubscriptions) {
+    db.pushSubscriptions = db.pushSubscriptions.filter(
+      (s) => !expiredEndpoints.includes(s.subscription.endpoint)
+    );
+    saveDB();
+  }
 }
 var contactPings = {};
+var lastSavedPingPersist = 0;
+function recordUserActivity(userId, forceSave = false) {
+  if (!userId || typeof userId !== "string") return;
+  const now = Date.now();
+  contactPings[userId] = now;
+  const contact = db.contacts.find((c) => c.id === userId);
+  if (contact) {
+    contact.lastActiveTimestamp = now;
+    contact.isOnline = true;
+    contact.lastActive = "En l\xEDnea";
+    if (forceSave || now - lastSavedPingPersist > 5e3) {
+      lastSavedPingPersist = now;
+      saveDB();
+    }
+  }
+}
 var typingStates = {};
 async function startServer() {
   const app = (0, import_express.default)();
   const PORT = 3e3;
-  const setPwaHeaders = (req, res) => {
-    const origin = req.headers.origin;
-    if (origin) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-    } else {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    }
-  };
-  app.get("/manifest.json", (req, res) => {
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    setPwaHeaders(req, res);
-    res.sendFile(import_path.default.join(process.cwd(), "public", "manifest.json"));
-  });
-  app.get("/sw.js", (req, res) => {
-    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-    setPwaHeaders(req, res);
-    res.sendFile(import_path.default.join(process.cwd(), "public", "sw.js"));
-  });
-  app.get("/logo-famichat.png", (req, res) => {
-    res.setHeader("Content-Type", "image/png");
-    setPwaHeaders(req, res);
-    res.sendFile(import_path.default.join(process.cwd(), "public", "logo-famichat.png"));
-  });
-  app.use(import_express.default.json({ limit: "40mb" }));
-  app.use(import_express.default.urlencoded({ limit: "40mb", extended: true }));
   app.use((req, res, next) => {
-    const activeUserId = req.query.activeUser || req.body.activeUser;
-    if (activeUserId && typeof activeUserId === "string") {
-      contactPings[activeUserId] = Date.now();
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
     }
     next();
   });
+  app.use(import_express.default.json({ limit: "50mb" }));
+  app.use(import_express.default.urlencoded({ limit: "50mb", extended: true }));
   app.get("/api/contacts", (req, res) => {
-    const activeUserId = req.query.activeUser;
-    if (activeUserId) {
-      contactPings[activeUserId] = Date.now();
-    }
+    const activeUser = req.query.activeUser;
     const now = Date.now();
+    if (activeUser) {
+      recordUserActivity(activeUser);
+    }
     const updatedContacts = db.contacts.map((contact) => {
       const lastSeen = contactPings[contact.id] || 0;
-      const isOnline = now - lastSeen < 1e4;
-      let lastActiveString = contact.lastActive;
-      const lastActiveTimestamp = isOnline ? now : lastSeen > 0 ? lastSeen : contact.lastActiveTimestamp || now - 120 * 60 * 1e3;
-      if (isOnline) {
-        lastActiveString = "En l\xEDnea";
-      } else if (lastSeen > 0) {
-        const timeStr = new Date(lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        lastActiveString = `\xDAlt. vez hoy a las ${timeStr}`;
+      const isNowOnline = lastSeen > 0 && now - lastSeen < 15e3;
+      const persistedTs = typeof contact.lastActiveTimestamp === "number" && contact.lastActiveTimestamp > 0 && contact.lastActiveTimestamp <= now + 6e4 ? contact.lastActiveTimestamp : void 0;
+      const exactTimestamp = lastSeen > 0 ? lastSeen : persistedTs;
+      if (contact.isOnline !== isNowOnline || contact.lastActiveTimestamp !== exactTimestamp) {
+        contact.isOnline = isNowOnline;
+        contact.lastActiveTimestamp = exactTimestamp;
+        contact.lastActive = isNowOnline ? "En l\xEDnea" : exactTimestamp ? contact.lastActive : "Sin conexi\xF3n registrada";
       }
       return {
         ...contact,
-        isOnline: isOnline || contact.id === activeUserId,
-        // local user is always online for themselves
-        lastActive: lastActiveString,
-        lastActiveTimestamp
+        isOnline: isNowOnline,
+        lastActiveTimestamp: exactTimestamp,
+        lastActive: isNowOnline ? "En l\xEDnea" : exactTimestamp ? "Desconectado" : "Sin conexi\xF3n registrada"
       };
     });
     res.json(updatedContacts);
   });
-  app.post("/api/contacts", (req, res) => {
-    const { contact, activeUser } = req.body;
-    if (!contact || !contact.name || !contact.relationship) {
-      res.status(400).json({ error: "Datos del familiar incompletos" });
-      return;
+  app.post("/api/presence-offline", (req, res) => {
+    const { userId } = req.body;
+    if (userId && typeof userId === "string") {
+      const now = Date.now();
+      delete contactPings[userId];
+      delete typingStates[userId];
+      const contact = db.contacts.find((c) => c.id === userId);
+      if (contact) {
+        contact.isOnline = false;
+        contact.lastActiveTimestamp = now;
+        contact.lastActive = "Desconectado";
+        saveDB();
+      }
     }
-    if (activeUser !== "papa-jose") {
-      res.status(403).json({ error: "Solo el administrador (Pap\xE1) puede agregar nuevos familiares" });
-      return;
-    }
-    db.contacts.push({
-      id: contact.id || `member-${Date.now()}`,
-      name: contact.name,
-      avatarEmoji: contact.avatarEmoji || "\u{1F9D1}\u{1F3FD}",
-      avatarColor: contact.avatarColor || "bg-slate-500",
-      relationship: contact.relationship,
-      role: "member",
-      isOnline: false,
-      lastActive: "Agregado recientemente",
-      lastActiveTimestamp: Date.now()
+    res.json({ success: true });
+  });
+  app.get("/api/typing", (req, res) => {
+    const now = Date.now();
+    const activeTypers = {};
+    Object.keys(typingStates).forEach((uid) => {
+      if (now - typingStates[uid].timestamp < 4e3) {
+        activeTypers[uid] = typingStates[uid].roomId;
+      } else {
+        delete typingStates[uid];
+      }
     });
-    saveDB();
-    res.json({ success: true, contacts: db.contacts });
+    res.json(activeTypers);
+  });
+  app.post("/api/typing", (req, res) => {
+    const { userId, roomId, isTyping } = req.body;
+    if (userId) {
+      recordUserActivity(userId);
+      if (isTyping && roomId) {
+        typingStates[userId] = { roomId, timestamp: Date.now() };
+      } else {
+        delete typingStates[userId];
+      }
+    }
+    res.json({ success: true });
   });
   app.get("/api/messages", (req, res) => {
+    const activeUser = req.query.activeUser;
+    const activeRoom = req.query.activeRoom;
+    if (activeUser) {
+      recordUserActivity(activeUser);
+      let statusChanged = false;
+      db.messages.forEach((msg) => {
+        if (msg.senderId === activeUser) return;
+        const isForActiveUser = msg.receiverId === activeUser || msg.receiverId === "family-group";
+        if (!isForActiveUser) return;
+        const isViewingThisRoom = msg.receiverId === "family-group" && activeRoom === "family-group" || msg.receiverId === activeUser && activeRoom === msg.senderId;
+        if (isViewingThisRoom && msg.status !== "read") {
+          msg.status = "read";
+          statusChanged = true;
+        } else if (!isViewingThisRoom && msg.status === "sent") {
+          msg.status = "delivered";
+          statusChanged = true;
+        }
+      });
+      if (statusChanged) {
+        saveDB();
+      }
+    }
     res.json(db.messages);
   });
-  function simulateReply(senderId, receiverId) {
-    let replierId = "";
-    let targetRoomId = "";
-    if (receiverId === "family-group") {
-      if (Math.random() > 0.45) return;
-      const eligible = db.contacts.filter((c) => c.id !== senderId);
-      if (eligible.length === 0) return;
-      const randomContact = eligible[Math.floor(Math.random() * eligible.length)];
-      replierId = randomContact.id;
-      targetRoomId = "family-group";
-    } else {
-      replierId = receiverId;
-      targetRoomId = senderId;
+  app.post("/api/messages/read", (req, res) => {
+    const { userId, roomId } = req.body;
+    if (!userId || !roomId) {
+      return res.status(400).json({ error: "Missing userId or roomId" });
     }
-    const replier = db.contacts.find((c) => c.id === replierId);
-    if (!replier) return;
-    let text = "";
-    if (replierId === "mama-tila") {
-      const choices = [
-        "\xA1Hola mi amor de mi vida! Qu\xE9 lindo leerte por aqu\xED. \xBFC\xF3mo va tu d\xEDa? Ya estoy cocinando algo rico para cuando nos juntemos. Te mando un beso gigante y bendiciones hijo/a \u{1F618}\u2764\uFE0F\u{1F372}",
-        "Qu\xE9 bueno saber de ti. Dios me lo bendiga y cuide de todo peligro. Cu\xE9ntame si vas a venir a almorzar m\xE1s tarde \u{1F64F}\u{1F496}",
-        "\xA1Qu\xE9 alegr\xEDa este mensaje! \xBFC\xF3mo va todo? No olvides abrigarte si sales, que hay un poco de fr\xEDo. \xA1Te quiero de aqu\xED al cielo! \u{1F970}\u2728"
-      ];
-      text = choices[Math.floor(Math.random() * choices.length)];
-    } else if (replierId === "hijo-christian") {
-      const choices = [
-        "\xA1Epa! Qu\xE9 tal todo? S\xFAper bien por ac\xE1, saliendo de una clase y revisando unas cosas de la carrera. \xBFHablamos en un rato m\xE1s? \u{1F919}\u{1F3FC}\u{1F4BB}",
-        "Holaaa! Voy terminando un proyecto. Al rato los llamo para ponernos al d\xEDa. \xA1Que tengan un excelente d\xEDa! \u26A1",
-        "\xA1Qu\xE9 buena onda leerte! Ac\xE1 ando descansando un ratito. Espero que todo marche de maravilla hoy."
-      ];
-      text = choices[Math.floor(Math.random() * choices.length)];
-    } else if (replierId === "hijo-cristopher") {
-      const choices = [
-        "\xA1Buenas buenas! Todo de diez por ac\xE1, jugando un ratito y haciendo mis tareas antes del almuerzo \u{1F3AE}\u270C\uFE0F",
-        "Hola! Me alegra mucho saber de ti. \xBFQu\xE9 cuentas de nuevo el d\xEDa de hoy? jaja",
-        "\xA1Hola! Ya estoy listo para comer la cazuela deliciosa de mam\xE1 jaja, \xA1un gran abrazo para todos! \u{1F372}\u{1F3E1}"
-      ];
-      text = choices[Math.floor(Math.random() * choices.length)];
-    } else if (replierId === "papa-jose") {
-      const choices = [
-        "Hola a todos. Por aqu\xED todo bien en el trabajo, terminando unas gestiones. Cu\xEDdense mucho en el camino.",
-        "Qu\xE9 alegr\xEDa ver que est\xE1n comunicados. Que tengan una excelente jornada, nos vemos m\xE1s tarde en casa. Abrazo grande.",
-        "Hola, todo excelente de este lado. Al rato me conecto idealmente para ver qu\xE9 plan tenemos hoy, bendiciones."
-      ];
-      text = choices[Math.floor(Math.random() * choices.length)];
-    } else {
-      text = `\xA1Hola! Qu\xE9 gusto leerte. Te mando un gran saludo y un fuerte abrazo familiar. \u{1F60A}\u{1F3E1}`;
-    }
-    setTimeout(() => {
-      contactPings[replierId] = Date.now() + 15e3;
-      typingStates[replierId] = { roomId: targetRoomId, timestamp: Date.now() };
-    }, 1e3);
-    setTimeout(() => {
-      delete typingStates[replierId];
-      contactPings[replierId] = Date.now();
-      const replyMsg = {
-        id: "msg-" + Date.now(),
-        senderId: replierId,
-        senderName: replier.name,
-        receiverId: targetRoomId,
-        text,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        status: "read",
-        messageType: "text"
-      };
-      db.messages.push(replyMsg);
-      saveDB();
-      if (targetRoomId === "family-group") {
-        db.contacts.forEach((contact) => {
-          if (contact.id !== replierId) {
-            sendPushNotification(contact.id, {
-              title: `FamiChat \u{1F3E1} ${replier.name}`,
-              body: text,
-              url: `/?roomId=family-group`,
-              tag: "family-group"
-            });
-          }
-        });
-      } else {
-        sendPushNotification(targetRoomId, {
-          title: `FamiChat \u2709\uFE0F de ${replier.name}`,
-          body: text,
-          url: `/?roomId=${replierId}`,
-          tag: `dm-${replierId}`
-        });
+    recordUserActivity(userId);
+    let changed = false;
+    db.messages.forEach((msg) => {
+      if (msg.senderId === userId) return;
+      const inRoom = roomId === "family-group" ? msg.receiverId === "family-group" : msg.senderId === roomId && msg.receiverId === userId;
+      if (inRoom && msg.status !== "read") {
+        msg.status = "read";
+        changed = true;
       }
-    }, 4500);
-  }
+    });
+    if (changed) {
+      saveDB();
+    }
+    res.json({ success: true, updated: changed });
+  });
   app.post("/api/messages", (req, res) => {
-    const { id, senderId, senderName, receiverId, text, messageType, mediaUrl, replyToId, replyToText, replyToSenderName } = req.body;
-    if (!senderId || !receiverId) {
-      res.status(400).json({ error: "Remitente o destinatario ausentes" });
-      return;
+    const {
+      id,
+      senderId,
+      senderName,
+      receiverId,
+      text,
+      activeUser,
+      messageType,
+      mediaUrl,
+      replyToId,
+      replyToText,
+      replyToSenderName
+    } = req.body;
+    if (!senderId || !receiverId || !text && !mediaUrl) {
+      return res.status(400).json({ error: "Missing message fields" });
+    }
+    recordUserActivity(activeUser || senderId, true);
+    delete typingStates[senderId];
+    if (id) {
+      const existing = db.messages.find((m) => m.id === id);
+      if (existing) {
+        return res.status(200).json(existing);
+      }
+    }
+    const now = Date.now();
+    let initialStatus = "sent";
+    if (receiverId === "family-group") {
+      const anyOtherMemberOnline = db.contacts.some(
+        (c) => c.id !== senderId && contactPings[c.id] && now - contactPings[c.id] < 15e3
+      );
+      if (anyOtherMemberOnline) {
+        initialStatus = "delivered";
+      }
+    } else {
+      const recipientLastSeen = contactPings[receiverId] || 0;
+      if (recipientLastSeen > 0 && now - recipientLastSeen < 15e3) {
+        initialStatus = "delivered";
+      }
     }
     const newMessage = {
-      id: id || `msg-${Date.now()}`,
+      id: id || "msg-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
       senderId,
       senderName,
       receiverId,
       text: text || "",
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      status: "sent",
+      status: initialStatus,
       messageType: messageType || "text",
       mediaUrl: mediaUrl || void 0,
       replyToId: replyToId || void 0,
@@ -388,245 +383,132 @@ async function startServer() {
     };
     db.messages.push(newMessage);
     saveDB();
-    simulateReply(senderId, receiverId);
-    if (receiverId === "family-group") {
-      db.contacts.forEach((contact) => {
-        if (contact.id !== senderId) {
-          sendPushNotification(contact.id, {
-            title: `FamiChat \u{1F3E1} ${senderName}`,
-            body: messageType === "image" ? "\u{1F4F7} Foto de familia" : messageType === "audio" ? "\u{1F3A4} Nota de voz familiar" : text || "",
-            url: `/?roomId=family-group`,
-            tag: "family-group"
-          });
-        }
-      });
-    } else {
-      sendPushNotification(receiverId, {
-        title: `FamiChat \u2709\uFE0F de ${senderName}`,
-        body: messageType === "image" ? "\u{1F4F7} Foto familiar privada" : messageType === "audio" ? "\u{1F3A4} Nota de voz privada" : text || "",
-        url: `/?roomId=${senderId}`,
-        tag: `dm-${senderId}`
-      });
+    sendPushNotificationsForMessage(newMessage).catch((err) => {
+      console.error("Error dispatching push notifications:", err);
+    });
+    res.status(201).json(newMessage);
+  });
+  app.post("/api/contacts", (req, res) => {
+    const { contact, activeUser } = req.body;
+    if (!contact || !contact.id || !contact.name) {
+      return res.status(400).json({ error: "Invalid contact data" });
     }
-    setTimeout(() => {
-      const idx = db.messages.findIndex((m) => m.id === newMessage.id);
-      if (idx !== -1 && db.messages[idx].status === "sent") {
-        db.messages[idx].status = "delivered";
-        saveDB();
-      }
-    }, 1200);
-    setTimeout(() => {
-      const idx = db.messages.findIndex((m) => m.id === newMessage.id);
-      if (idx !== -1 && db.messages[idx].status === "delivered") {
-        db.messages[idx].status = "read";
-        saveDB();
-      }
-    }, 3200);
-    res.json(newMessage);
+    if (activeUser) {
+      recordUserActivity(activeUser, true);
+    }
+    const newContact = {
+      ...contact,
+      role: "member",
+      isOnline: false,
+      lastActiveTimestamp: void 0,
+      lastActive: "Sin conexi\xF3n registrada"
+    };
+    db.contacts.push(newContact);
+    saveDB();
+    res.status(201).json({ contact: newContact, contacts: db.contacts });
   });
   app.delete("/api/messages", (req, res) => {
     const { channelId, userId } = req.body;
-    if (!channelId || !userId) {
-      res.status(400).json({ error: "Faltan par\xE1metros para borrar conversaci\xF3n" });
-      return;
+    if (!channelId) {
+      return res.status(400).json({ error: "Missing channelId to clear" });
     }
     if (channelId === "family-group") {
       db.messages = db.messages.filter((m) => m.receiverId !== "family-group");
     } else {
       db.messages = db.messages.filter((m) => {
-        const isBetweenThem = m.senderId === userId && m.receiverId === channelId || m.senderId === channelId && m.receiverId === userId;
-        return !isBetweenThem;
+        const isBetweenUsers = m.senderId === userId && m.receiverId === channelId || m.senderId === channelId && m.receiverId === userId;
+        return !isBetweenUsers;
       });
     }
     saveDB();
-    res.json({ success: true });
+    res.json({ success: true, remainingCount: db.messages.length });
   });
   app.delete("/api/messages/:id", (req, res) => {
-    const messageId = req.params.id;
-    db.messages = db.messages.filter((m) => m.id !== messageId);
-    saveDB();
-    res.json({ success: true });
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "Missing message ID" });
+    }
+    const initialLength = db.messages.length;
+    db.messages = db.messages.filter((m) => m.id !== id);
+    if (db.messages.length < initialLength) {
+      saveDB();
+    }
+    res.json({ success: true, removedId: id });
   });
   app.post("/api/messages/:id/react", (req, res) => {
-    const messageId = req.params.id;
+    const { id } = req.params;
     const { reaction } = req.body;
-    if (!reaction) {
-      res.status(400).json({ error: "Falta el emoji de reacci\xF3n" });
-      return;
+    if (!id || !reaction) {
+      return res.status(400).json({ error: "Missing message ID or reaction emoji" });
     }
-    const msg = db.messages.find((m) => m.id === messageId);
-    if (msg) {
-      if (!msg.reactions) {
-        msg.reactions = [];
-      }
-      const index = msg.reactions.indexOf(reaction);
-      if (index !== -1) {
-        msg.reactions.splice(index, 1);
-      } else {
-        msg.reactions.push(reaction);
-      }
-      saveDB();
-      res.json({ success: true, reactions: msg.reactions });
+    const msg = db.messages.find((m) => m.id === id);
+    if (!msg) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+    if (!msg.reactions) {
+      msg.reactions = [];
+    }
+    const existingIndex = msg.reactions.indexOf(reaction);
+    if (existingIndex !== -1) {
+      msg.reactions.splice(existingIndex, 1);
     } else {
-      res.status(404).json({ error: "Mensaje no encontrado" });
+      msg.reactions.push(reaction);
     }
+    saveDB();
+    res.json({ success: true, message: msg });
   });
   app.post("/api/messages/:id/star", (req, res) => {
-    const messageId = req.params.id;
-    const msg = db.messages.find((m) => m.id === messageId);
-    if (msg) {
-      msg.isStarred = !msg.isStarred;
-      saveDB();
-      res.json({ success: true, isStarred: msg.isStarred });
-    } else {
-      res.status(404).json({ error: "Mensaje no encontrado" });
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "Missing message ID" });
     }
-  });
-  app.get("/api/typing", (req, res) => {
-    const now = Date.now();
-    const activeTyping = {};
-    Object.entries(typingStates).forEach(([userId, payload]) => {
-      if (now - payload.timestamp < 4e3) {
-        activeTyping[userId] = payload.roomId;
-      }
-    });
-    res.json(activeTyping);
-  });
-  app.post("/api/typing", (req, res) => {
-    const { userId, roomId, isTyping } = req.body;
-    if (userId) {
-      if (isTyping) {
-        typingStates[userId] = { roomId, timestamp: Date.now() };
-      } else {
-        delete typingStates[userId];
-      }
+    const msg = db.messages.find((m) => m.id === id);
+    if (!msg) {
+      return res.status(404).json({ error: "Message not found" });
     }
-    res.json({ success: true });
-  });
-  app.post("/api/presence-simulation", (req, res) => {
-    const { contactId, state, activeUserId, text } = req.body;
-    if (!contactId || !state) {
-      res.status(400).json({ error: "Par\xE1metros incompletos" });
-      return;
-    }
-    const now = Date.now();
-    const contact = db.contacts.find((c) => c.id === contactId);
-    if (!contact) {
-      res.status(404).json({ error: "Contacto no encontrado" });
-      return;
-    }
-    if (state === "online") {
-      contactPings[contactId] = now + 1e3 * 60 * 60 * 24;
-      delete typingStates[contactId];
-    } else if (state === "offline") {
-      contactPings[contactId] = now - 60 * 60 * 1e3;
-      delete typingStates[contactId];
-    } else if (state === "typing_group") {
-      contactPings[contactId] = now + 1e3 * 60 * 60 * 24;
-      typingStates[contactId] = { roomId: "family-group", timestamp: now + 1e3 * 60 * 60 * 24 };
-    } else if (state === "typing_private") {
-      const targetRoom = activeUserId || "papa-jose";
-      contactPings[contactId] = now + 1e3 * 60 * 60 * 24;
-      typingStates[contactId] = { roomId: targetRoom, timestamp: now + 1e3 * 60 * 60 * 24 };
-    } else if (state === "trigger_message") {
-      const msgText = text || "\xA1Hola familia! \u{1F44B}\u{1F60A}";
-      delete typingStates[contactId];
-      contactPings[contactId] = now;
-      const randomMsgId = "msg-" + now;
-      const targetRoomId = activeUserId || "family-group";
-      const simulatedMsg = {
-        id: randomMsgId,
-        senderId: contactId,
-        senderName: contact.name,
-        receiverId: targetRoomId,
-        text: msgText,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        status: "read",
-        messageType: "text"
-      };
-      db.messages.push(simulatedMsg);
-      saveDB();
-      if (targetRoomId === "family-group") {
-        db.contacts.forEach((c) => {
-          if (c.id !== contactId) {
-            sendPushNotification(c.id, {
-              title: `FamiChat \u{1F3E1} ${contact.name}`,
-              body: msgText,
-              url: `/?roomId=family-group`,
-              tag: "family-group"
-            });
-          }
-        });
-      } else {
-        sendPushNotification(targetRoomId, {
-          title: `FamiChat \u2709\uFE0F de ${contact.name}`,
-          body: msgText,
-          url: `/?roomId=${contactId}`,
-          tag: `dm-${contactId}`
-        });
-      }
-    }
-    res.json({ success: true });
+    msg.isStarred = !msg.isStarred;
+    saveDB();
+    res.json({ success: true, message: msg });
   });
   app.get("/api/push-public-key", (req, res) => {
-    if (db.vapidKeys) {
-      res.json({ publicKey: db.vapidKeys.publicKey });
-    } else {
-      res.status(500).json({ error: "No se han generado llaves VAPID" });
-    }
+    res.json({ publicKey: db.vapidKeys?.publicKey || "" });
   });
   app.post("/api/push-subscribe", (req, res) => {
     const { userId, subscription } = req.body;
-    if (!userId || !subscription) {
-      res.status(400).json({ error: "Faltan par\xE1metros de suscripci\xF3n" });
-      return;
+    if (!userId || !subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: "Invalid push subscription payload" });
     }
     if (!db.pushSubscriptions) {
       db.pushSubscriptions = [];
     }
-    const idx = db.pushSubscriptions.findIndex((s) => s.subscription.endpoint === subscription.endpoint);
-    if (idx !== -1) {
-      db.pushSubscriptions[idx].userId = userId;
+    const existingIdx = db.pushSubscriptions.findIndex(
+      (s) => s.subscription.endpoint === subscription.endpoint
+    );
+    if (existingIdx !== -1) {
+      db.pushSubscriptions[existingIdx].userId = userId;
+      db.pushSubscriptions[existingIdx].subscription = subscription;
     } else {
       db.pushSubscriptions.push({ userId, subscription });
     }
     saveDB();
-    res.json({ success: true });
+    res.status(201).json({ success: true });
   });
   app.post("/api/push-unsubscribe", (req, res) => {
-    const { userId, endpoint } = req.body;
-    if (db.pushSubscriptions) {
+    const { endpoint } = req.body;
+    if (endpoint && db.pushSubscriptions) {
       db.pushSubscriptions = db.pushSubscriptions.filter(
-        (s) => !(s.userId === userId && s.subscription.endpoint === endpoint)
+        (s) => s.subscription.endpoint !== endpoint
       );
       saveDB();
     }
     res.json({ success: true });
   });
-  const distExists = import_fs.default.existsSync(import_path.default.join(process.cwd(), "dist", "index.html"));
-  const isDevMode = process.env.NODE_ENV !== "production" || !distExists;
-  if (isDevMode) {
+  if (process.env.NODE_ENV !== "production") {
     const vite = await (0, import_vite.createServer)({
       server: { middlewareMode: true },
       appType: "spa"
     });
     app.use(vite.middlewares);
-    app.get("*", async (req, res, next) => {
-      const url = req.originalUrl;
-      try {
-        const indexPath = import_path.default.resolve(process.cwd(), "index.html");
-        if (import_fs.default.existsSync(indexPath)) {
-          let template = import_fs.default.readFileSync(indexPath, "utf-8");
-          template = await vite.transformIndexHtml(url, template);
-          res.status(200).set({ "Content-Type": "text/html" }).end(template);
-        } else {
-          res.status(404).send("index.html not found");
-        }
-      } catch (e) {
-        vite.ssrFixStacktrace(e);
-        next(e);
-      }
-    });
   } else {
     const distPath = import_path.default.join(process.cwd(), "dist");
     app.use(import_express.default.static(distPath));
@@ -635,7 +517,7 @@ async function startServer() {
     });
   }
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server executing live on http://localhost:${PORT}`);
+    console.log(`FamiChat Real-Time Server running on http://localhost:${PORT}`);
   });
 }
 startServer();

@@ -6,6 +6,7 @@ import {
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { ConfirmModal } from './ConfirmModal';
 import { formatLastActive, getFormattedDateDivider } from '../utils/date';
+import { apiFetch } from '../utils/api';
 
 interface ChatAreaProps {
   currentUser: Contact;
@@ -200,35 +201,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     localStorage.setItem('famichat_bubble_style', style);
   };
 
-  const [simulatedCustomText, setSimulatedCustomText] = useState<Record<string, string>>({});
-
-  const handleSimulateStatus = async (contactId: string, state: 'online' | 'offline' | 'typing_group' | 'typing_private' | 'trigger_message') => {
-    try {
-      const msgText = simulatedCustomText[contactId] || '';
-      const response = await fetch('/api/presence-simulation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          contactId, 
-          state, 
-          activeUserId: currentUser.id,
-          text: state === 'trigger_message' ? msgText : undefined
-        })
-      });
-      if (response.ok) {
-        if (state === 'trigger_message') {
-          setSimulatedCustomText(prev => ({ ...prev, [contactId]: '' }));
-        }
-        // Force passive local audio cue
-        const playSnd = (window as any).playFamiChatAudio;
-        if (playSnd) {
-          try { playSnd('click'); } catch(err){}
-        }
-      }
-    } catch(err) {
-      console.error("Presence simulator request failed:", err);
-    }
-  };
 
   const WALLPAPERS = [
     { id: 'classic', name: 'Clásico Beige', colorBg: 'bg-[#efeae2]', colorDot: 'bg-[#14b8a6]', border: 'border-emerald-250' },
@@ -348,7 +320,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   useEffect(() => {
     if (!inputText.trim()) {
       // Clear typing
-      fetch('/api/typing', {
+      apiFetch('/api/typing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser.id, roomId: activeChannelId, isTyping: false })
@@ -359,7 +331,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     const now = Date.now();
     if (now - lastTypingSignaledRef.current > 2000) {
       lastTypingSignaledRef.current = now;
-      fetch('/api/typing', {
+      apiFetch('/api/typing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser.id, roomId: activeChannelId, isTyping: true })
@@ -394,6 +366,22 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   // --- HTML5 Core Audio Note Recorder Logic ---
+  useEffect(() => {
+    return () => {
+      if (recordIntervalRef.current) {
+        clearInterval(recordIntervalRef.current);
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stream?.getTracks().forEach(t => t.stop());
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    };
+  }, []);
+
   const startRecordingAudio = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -408,7 +396,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
@@ -432,7 +421,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       }, 1000);
 
     } catch (err) {
-      alert("No se pudo acceder al micrófono del teléfono/computador. Por favor asegúrate de otorgar los permisos correspondientes.");
+      setConfirmModal({
+        isOpen: true,
+        message: "No se pudo acceder al micrófono del dispositivo. Por favor asegúrate de otorgar los permisos correspondientes.",
+        onConfirm: () => {}
+      });
       console.warn("Microphone access blocked:", err);
     }
   };
@@ -473,7 +466,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert("Por favor selecciona un archivo de tipo imagen (JPEG, PNG, GIF, etc.).");
+      setConfirmModal({
+        isOpen: true,
+        message: "Por favor selecciona un archivo de tipo imagen (JPEG, PNG, GIF, etc.).",
+        onConfirm: () => {}
+      });
       return;
     }
 
@@ -489,7 +486,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     };
 
     reader.onerror = () => {
-      alert("Error al procesar la imagen elegida.");
+      setConfirmModal({
+        isOpen: true,
+        message: "Error al procesar la imagen elegida.",
+        onConfirm: () => {}
+      });
       setIsUploading(false);
     };
   };
@@ -1282,12 +1283,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* DETAILS RIGHT SIDEBAR PANEL */}
       {showMemberInfo && (
-        <div id="chat-partner-info-sidebar" className="absolute top-[calc(var(--sat,0px)+3.75rem)] md:top-16 right-0 bottom-0 bg-white shadow-2xl border-l border-slate-200 w-full sm:w-[310px] z-15 flex flex-col p-5 overflow-y-auto animate-slide-in-right">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4 select-none">
-            <h3 className="font-bold text-slate-800 text-sm tracking-wide">Detalles de la Red</h3>
+        <div id="chat-partner-info-sidebar" className="absolute top-[calc(var(--sat,0px)+3.75rem)] md:top-16 right-0 bottom-0 bg-white dark:bg-[#111b21] shadow-2xl border-l border-slate-200 dark:border-[#222d34] w-full sm:w-[310px] z-15 flex flex-col p-5 overflow-y-auto animate-slide-in-right">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#222d34] mb-4 select-none">
+            <h3 className="font-bold text-slate-800 dark:text-[#e9edef] text-sm tracking-wide">Detalles de la Red</h3>
             <button 
               onClick={onToggleMemberInfo}
-              className="text-slate-400 hover:text-slate-650 font-bold text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1.2 rounded cursor-pointer"
+              className="text-slate-400 dark:text-[#8696a0] hover:text-slate-650 dark:hover:text-white font-bold text-xs bg-slate-100 dark:bg-[#202c33] hover:bg-slate-200 dark:hover:bg-[#2a3942] px-2 py-1.2 rounded cursor-pointer"
             >
               Cerrar
             </button>
@@ -1299,36 +1300,36 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 🏡
               </div>
             ) : (
-              <div className={`w-20 h-20 rounded-full ${activeContact?.avatarColor || 'bg-slate-500'} text-white flex items-center justify-center text-4xl shadow-md border-2 border-white`}>
+              <div className={`w-20 h-20 rounded-full ${activeContact?.avatarColor || 'bg-slate-500'} text-white flex items-center justify-center text-4xl shadow-md border-2 border-white dark:border-[#222d34]`}>
                 {activeContact?.avatarEmoji || '👤'}
               </div>
             )}
 
             <div>
-              <h4 className="font-bold text-slate-800 text-base">{isGroup ? 'Familia Unida 🏡' : activeContact?.name}</h4>
-              <p className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-0.8 rounded-full inline-block mt-1 uppercase tracking-wide border border-emerald-100 text-[9.5px]">
+              <h4 className="font-bold text-slate-800 dark:text-[#e9edef] text-base">{isGroup ? 'Familia Unida 🏡' : activeContact?.name}</h4>
+              <p className="text-xs bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-0.8 rounded-full inline-block mt-1 uppercase tracking-wide border border-emerald-100 dark:border-emerald-800/60 text-[9.5px]">
                 {isGroup ? 'Historial Grupal' : activeContact?.relationship}
               </p>
             </div>
           </div>
 
           <div className="mt-6 space-y-4 text-xs">
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-150">
-              <h5 className="font-bold text-slate-700 uppercase text-[9px] tracking-wider mb-1">Estado de Conexión Real</h5>
-              <p className="text-slate-655 font-medium leading-relaxed">
-                {isGroup ? 'El canal grupal une a los 4 fundadores y todas sus dependencias.' : (activeContact?.isOnline ? '🟢 En línea ahora' : `🕒 ${activeContact?.lastActive}`)}
+            <div className="bg-slate-50 dark:bg-[#202c33] p-3 rounded-lg border border-slate-150 dark:border-[#222d34]">
+              <h5 className="font-bold text-slate-700 dark:text-[#8696a0] uppercase text-[9px] tracking-wider mb-1">Estado de Conexión Real</h5>
+              <p className="text-slate-655 dark:text-[#e9edef] font-medium leading-relaxed">
+                {isGroup ? 'El canal grupal une a los integrantes registrados de la familia.' : (activeContact?.isOnline ? '🟢 En línea ahora' : `🕒 ${formatLastActive(activeContact)}`)}
               </p>
             </div>
 
             {!isGroup && (
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-150 text-slate-700 space-y-2.5">
+              <div className="bg-slate-50 dark:bg-[#202c33] p-3 rounded-lg border border-slate-150 dark:border-[#222d34] text-slate-700 dark:text-[#e9edef] space-y-2.5">
                 <div>
-                  <h5 className="font-bold text-slate-700 uppercase text-[9px] tracking-wider mb-0.5">Teléfono Registrado</h5>
-                  <p className="text-slate-600 font-mono text-[11px]">{activeContact?.phone || 'No registrado'}</p>
+                  <h5 className="font-bold text-slate-700 dark:text-[#8696a0] uppercase text-[9px] tracking-wider mb-0.5">Teléfono Registrado</h5>
+                  <p className="text-slate-600 dark:text-[#d1d7db] font-mono text-[11px]">{activeContact?.phone || 'No registrado'}</p>
                 </div>
                 <div>
-                  <h5 className="font-bold text-slate-700 uppercase text-[9px] tracking-wider mb-0.5">Parentesco</h5>
-                  <p className="text-slate-600 capitalize">{activeContact?.relationship || 'Familiar'}</p>
+                  <h5 className="font-bold text-slate-700 dark:text-[#8696a0] uppercase text-[9px] tracking-wider mb-0.5">Parentesco</h5>
+                  <p className="text-slate-600 dark:text-[#d1d7db] capitalize">{activeContact?.relationship || 'Familiar'}</p>
                 </div>
               </div>
             )}

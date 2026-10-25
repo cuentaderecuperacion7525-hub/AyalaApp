@@ -49,7 +49,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [newMemberPhone, setNewMemberPhone] = useState('');
   const [newMemberEmoji, setNewMemberEmoji] = useState('🧑🏽');
   const [newMemberColor, setNewMemberColor] = useState('bg-teal-500');
-  const [newMemberStatus, setNewMemberStatus] = useState<boolean>(true);
 
   // Emojis lists to select for custom family member
   const EMOJI_OPTIONS = ['🧑🏽', '👩🏽', '👦🏽', '👧🏽', '🧔🏽', '👵🏽', '👴🏽', '👶🏽', '🎓', '✈️'];
@@ -119,8 +118,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       avatarEmoji: newMemberEmoji,
       avatarColor: newMemberColor,
       relationship: newMemberRel.trim(),
-      isOnline: newMemberStatus,
-      lastActive: newMemberStatus ? 'En línea' : 'Últ. vez hace un momento',
+      isOnline: false,
+      lastActive: 'Sin conexión registrada',
+      lastActiveTimestamp: undefined,
       phone: newMemberPhone.trim() || undefined
     });
 
@@ -721,22 +721,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     </div>
 
-                    {/* Presence State select */}
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-150 flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-semibold text-slate-700">¿Establecer en línea?</h4>
-                        <p className="text-[10px] text-slate-450">Aparecerá conectado inmediatamente</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={newMemberStatus}
-                          onChange={(e) => setNewMemberStatus(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-slate-250 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                      </label>
-                    </div>
 
                     <div className="pt-2 flex gap-2">
                       <button

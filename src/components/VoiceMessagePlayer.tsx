@@ -17,8 +17,18 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({ mediaUrl
     audioRef.current = audio;
 
     const handleLoadedMetadata = () => {
-      if (audio.duration && audio.duration !== Infinity) {
+      if (audio.duration && audio.duration !== Infinity && !isNaN(audio.duration)) {
         setDuration(audio.duration);
+      } else if (audio.duration === Infinity) {
+        audio.currentTime = 1e101;
+        const fixDuration = () => {
+          audio.removeEventListener('timeupdate', fixDuration);
+          audio.currentTime = 0;
+          if (audio.duration && audio.duration !== Infinity && !isNaN(audio.duration)) {
+            setDuration(audio.duration);
+          }
+        };
+        audio.addEventListener('timeupdate', fixDuration);
       }
     };
 

@@ -1,12 +1,42 @@
-import express from "express";
-import path from "path";
-import fs from "fs";
-import { createServer as createViteServer } from "vite";
-import type { Contact, Message } from "./src/types.ts";
-import webPush from "web-push";
+import express from 'express';
+import { createServer as createViteServer } from 'vite';
+import path from 'path';
+import fs from 'fs';
+import webpush from 'web-push';
 
-// Setup storage and fallback in /tmp for persistence on Cloud Run bounds
-const DB_FILE = path.join(process.cwd(), "famichat_db.json");
+export type UserRole = 'admin' | 'member';
+
+export interface Contact {
+  id: string;
+  name: string;
+  avatarEmoji: string;
+  avatarColor: string;
+  relationship: string;
+  role: UserRole;
+  isOnline: boolean;
+  lastActive: string;
+  lastActiveTimestamp?: number;
+  phone?: string;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  receiverId: string;
+  text: string;
+  timestamp: Date | string;
+  status: 'sent' | 'delivered' | 'read';
+  reactions?: string[];
+  messageType?: 'text' | 'image' | 'audio';
+  mediaUrl?: string;
+  isStarred?: boolean;
+  replyToId?: string;
+  replyToText?: string;
+  replyToSenderName?: string;
+}
+
+const DB_FILE = path.resolve(process.cwd(), 'famichat_db.json');
 
 const INITIAL_CONTACTS: Contact[] = [
   {
@@ -16,9 +46,9 @@ const INITIAL_CONTACTS: Contact[] = [
     avatarColor: 'bg-teal-600',
     relationship: 'Papá (Admin)',
     role: 'admin',
-    isOnline: true,
-    lastActive: 'En línea',
-    lastActiveTimestamp: Date.now(),
+    isOnline: false,
+    lastActive: 'Sin conexión registrada',
+    lastActiveTimestamp: undefined,
     phone: '+56 9 1234 5678'
   },
   {
@@ -28,9 +58,9 @@ const INITIAL_CONTACTS: Contact[] = [
     avatarColor: 'bg-rose-500',
     relationship: 'Mamá',
     role: 'member',
-    isOnline: true,
-    lastActive: 'En línea',
-    lastActiveTimestamp: Date.now(),
+    isOnline: false,
+    lastActive: 'Sin conexión registrada',
+    lastActiveTimestamp: undefined,
     phone: '+56 9 8765 4321'
   },
   {
@@ -41,8 +71,8 @@ const INITIAL_CONTACTS: Contact[] = [
     relationship: 'Hijo',
     role: 'member',
     isOnline: false,
-    lastActive: 'Últ. vez hoy a las 18:15',
-    lastActiveTimestamp: Date.now() - 40 * 60 * 1000, // 40 minutes ago
+    lastActive: 'Sin conexión registrada',
+    lastActiveTimestamp: undefined,
     phone: '+56 9 5555 1212'
   },
   {
@@ -53,394 +83,426 @@ const INITIAL_CONTACTS: Contact[] = [
     relationship: 'Hijo',
     role: 'member',
     isOnline: false,
-    lastActive: 'Últ. vez hoy a las 17:40',
-    lastActiveTimestamp: Date.now() - 150 * 60 * 1000, // 2.5 hours ago
+    lastActive: 'Sin conexión registrada',
+    lastActiveTimestamp: undefined,
     phone: '+56 9 7777 3434'
   }
 ];
 
-const getBaselineMessages = (): Message[] => {
-  const dateOffset = (minsAgo: number) => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - minsAgo);
-    return d.toISOString();
-  };
+interface PushSubscriptionItem {
+  userId: string;
+  subscription: webpush.PushSubscription;
+}
 
-  return [
-    {
-      id: 'g1',
-      senderId: 'mama-tila',
-      senderName: 'Mamá Tila del Carmen',
-      receiverId: 'family-group',
-      text: '¡Hola familia hermosa! ¿Cómo va su día? ❤️',
-      timestamp: dateOffset(60),
-      status: 'read'
-    },
-    {
-      id: 'g2',
-      senderId: 'hijo-christian',
-      senderName: 'Christian Fernando',
-      receiverId: 'family-group',
-      text: 'Todo bien mamá, saliendo de una clase. ¡Qué tal ustedes!',
-      timestamp: dateOffset(55),
-      status: 'read'
-    },
-    {
-      id: 'g3',
-      senderId: 'hijo-cristopher',
-      senderName: 'Cristopher',
-      receiverId: 'family-group',
-      text: 'Holaaa, yo acabo de terminar mis tareas, ¿ya van a almorzar? 😋',
-      timestamp: dateOffset(50),
-      status: 'read'
-    },
-    {
-      id: 'g4',
-      senderId: 'papa-jose',
-      senderName: 'Papá José Manuel',
-      receiverId: 'family-group',
-      text: 'Hola a todos. Acabo de salir de una reunión. Tila, al rato te marco para ver lo de la comida. Abrazo a mis muchachos.',
-      timestamp: dateOffset(45),
-      status: 'read'
-    },
-    {
-      id: 'g5',
-      senderId: 'mama-tila',
-      senderName: 'Mamá Tila del Carmen',
-      receiverId: 'family-group',
-      text: 'Sii José, preparé cazuelita rica. Los espero a los tres en casa. 🍲',
-      timestamp: dateOffset(40),
-      status: 'read'
-    }
-  ];
-};
-
-// Global Store State loaded from file or defaults
-interface DBStore {
+interface DBStructure {
   contacts: Contact[];
   messages: Message[];
+  pushSubscriptions?: PushSubscriptionItem[];
   vapidKeys?: {
     publicKey: string;
     privateKey: string;
   };
-  pushSubscriptions?: Array<{
-    userId: string;
-    subscription: any;
-  }>;
 }
 
-let db: DBStore = {
-  contacts: INITIAL_CONTACTS,
-  messages: getBaselineMessages(),
-  pushSubscriptions: []
-};
-
-// IO Save / Load helpers with error bounds
-function loadDB() {
+function loadDB(): DBStructure {
   try {
     if (fs.existsSync(DB_FILE)) {
-      const parsed = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-      if (parsed.contacts && parsed.messages) {
-        db = parsed;
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+
+      if (!parsed.contacts || !Array.isArray(parsed.contacts) || parsed.contacts.length === 0) {
+        parsed.contacts = INITIAL_CONTACTS.map(c => ({ ...c }));
+      } else {
+        const now = Date.now();
+        parsed.contacts = parsed.contacts.map((c: Contact) => {
+          // Clean up any corrupted future timestamps or hardcoded fake online states on boot
+          const hasValidPastTimestamp =
+            typeof c.lastActiveTimestamp === 'number' &&
+            c.lastActiveTimestamp > 0 &&
+            c.lastActiveTimestamp <= now + 60000;
+
+          return {
+            ...c,
+            isOnline: false,
+            lastActiveTimestamp: hasValidPastTimestamp ? c.lastActiveTimestamp : undefined,
+            lastActive: hasValidPastTimestamp ? c.lastActive : 'Sin conexión registrada'
+          };
+        });
       }
+
+      if (!Array.isArray(parsed.messages)) {
+        parsed.messages = [];
+      }
+      if (!Array.isArray(parsed.pushSubscriptions)) {
+        parsed.pushSubscriptions = [];
+      }
+      return parsed;
     }
   } catch (e) {
-    console.error("Failed to read server local filesystem DB, using in-memory state:", e);
+    console.error('Error loading DB file:', e);
   }
+
+  const initial: DBStructure = {
+    contacts: INITIAL_CONTACTS.map(c => ({ ...c })),
+    messages: [],
+    pushSubscriptions: []
+  };
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to write initial DB:', e);
+  }
+  return initial;
 }
+
+const db: DBStructure = loadDB();
 
 function saveDB() {
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
   } catch (e) {
-    console.error("Failed to write to file database:", e);
+    console.error('Error saving DB file:', e);
   }
 }
 
-loadDB();
-
-// Ensure pushSubscriptions array exists
-if (!db.pushSubscriptions) {
-  db.pushSubscriptions = [];
-}
-
-// Generate stable VAPID keys and persist if missing
-if (!db.vapidKeys) {
-  db.vapidKeys = webPush.generateVAPIDKeys();
+// Configure Web Push with automatic persistent VAPID keys
+if (!db.vapidKeys || !db.vapidKeys.publicKey || !db.vapidKeys.privateKey) {
+  const generatedKeys = webpush.generateVAPIDKeys();
+  db.vapidKeys = {
+    publicKey: generatedKeys.publicKey,
+    privateKey: generatedKeys.privateKey
+  };
+  saveDB();
+} else {
   saveDB();
 }
 
-// Configure web-push details
-webPush.setVapidDetails(
-  "mailto:josemanuel5121@gmail.com",
+webpush.setVapidDetails(
+  'mailto:familia@famichat.app',
   db.vapidKeys.publicKey,
   db.vapidKeys.privateKey
 );
 
-function sendPushNotification(targetUserId: string, payload: { title: string; body: string; url?: string; tag?: string }) {
-  if (!db.pushSubscriptions) return;
+// Helper to dispatch background Push notifications to family members
+async function sendPushNotificationsForMessage(msg: Message) {
+  if (!db.pushSubscriptions || db.pushSubscriptions.length === 0) return;
 
-  const userSubs = db.pushSubscriptions.filter(sub => sub.userId === targetUserId);
-  if (userSubs.length === 0) return;
+  const isGroup = msg.receiverId === 'family-group';
+  const senderContact = db.contacts.find(c => c.id === msg.senderId);
+  const emoji = senderContact?.avatarEmoji || '💬';
 
-  const payloadString = JSON.stringify(payload);
+  const notificationTitle = isGroup
+    ? `🏡 Familia Unida (${msg.senderName.split(' ')[0]})`
+    : `${emoji} ${msg.senderName}`;
 
-  userSubs.forEach(userSub => {
-    webPush.sendNotification(userSub.subscription, payloadString)
-      .catch((err: any) => {
-        console.error(`Error sending push notification to user ${targetUserId}:`, err);
-        // If subscription is expired or no longer active (410 Gone / 404), remove it
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          db.pushSubscriptions = db.pushSubscriptions?.filter(sub => sub.subscription.endpoint !== userSub.subscription.endpoint);
-          saveDB();
-        }
-      });
+  let notificationBody = msg.text;
+  if (msg.messageType === 'image') {
+    notificationBody = '📷 Envió una foto compartida';
+  } else if (msg.messageType === 'audio') {
+    notificationBody = '🎙️ Envió una nota de voz familiar';
+  }
+
+  const targetRoomId = isGroup ? 'family-group' : msg.senderId;
+
+  const payload = JSON.stringify({
+    title: notificationTitle,
+    body: notificationBody,
+    icon: '/favicon.svg',
+    badge: '/favicon.svg',
+    tag: `famichat-${targetRoomId}`,
+    url: `/?roomId=${targetRoomId}`,
+    timestamp: Date.now()
   });
+
+  const expiredEndpoints: string[] = [];
+
+  const sendPromises = db.pushSubscriptions.map(async (item) => {
+    if (item.userId === msg.senderId) return;
+    if (!isGroup && item.userId !== msg.receiverId) return;
+
+    try {
+      await webpush.sendNotification(item.subscription, payload);
+    } catch (err: any) {
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        expiredEndpoints.push(item.subscription.endpoint);
+      }
+    }
+  });
+
+  await Promise.allSettled(sendPromises);
+
+  if (expiredEndpoints.length > 0 && db.pushSubscriptions) {
+    db.pushSubscriptions = db.pushSubscriptions.filter(
+      s => !expiredEndpoints.includes(s.subscription.endpoint)
+    );
+    saveDB();
+  }
 }
 
-// Active users ping system to track real-time connection status
+// Track real active heartbeats per user ID (timestamp in ms)
 const contactPings: Record<string, number> = {};
+let lastSavedPingPersist = 0;
+
+function recordUserActivity(userId?: string, forceSave = false) {
+  if (!userId || typeof userId !== 'string') return;
+  const now = Date.now();
+  contactPings[userId] = now;
+
+  const contact = db.contacts.find(c => c.id === userId);
+  if (contact) {
+    contact.lastActiveTimestamp = now;
+    contact.isOnline = true;
+    contact.lastActive = 'En línea';
+    // Persist to disk immediately on important events or at least every 5 seconds during polling
+    if (forceSave || now - lastSavedPingPersist > 5000) {
+      lastSavedPingPersist = now;
+      saveDB();
+    }
+  }
+}
+
+// Track active typing states: { [userId]: { roomId, timestamp } }
 const typingStates: Record<string, { roomId: string; timestamp: number }> = {};
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Serve critical PWA assets with explicit headers to bypass SPA handlers and ensure Chrome validation
-  const setPwaHeaders = (req: any, res: any) => {
-    const origin = req.headers.origin;
-    if (origin) {
-      res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-    } else {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    }
-  };
-
-  app.get("/manifest.json", (req, res) => {
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    setPwaHeaders(req, res);
-    res.sendFile(path.join(process.cwd(), "public", "manifest.json"));
-  });
-
-  app.get("/sw.js", (req, res) => {
-    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-    setPwaHeaders(req, res);
-    res.sendFile(path.join(process.cwd(), "public", "sw.js"));
-  });
-
-  app.get("/logo-famichat.png", (req, res) => {
-    res.setHeader("Content-Type", "image/png");
-    setPwaHeaders(req, res);
-    res.sendFile(path.join(process.cwd(), "public", "logo-famichat.png"));
-  });
-
-  // Set higher payload size limits so families can share real audios and images safely in base64 format
-  app.use(express.json({ limit: "40mb" }));
-  app.use(express.urlencoded({ limit: "40mb", extended: true }));
-
-  // Helper middleware to mark presence
+  // Enable CORS so the Native Android APK can communicate directly with the backend server
   app.use((req, res, next) => {
-    const activeUserId = req.query.activeUser || req.body.activeUser;
-    if (activeUserId && typeof activeUserId === 'string') {
-      contactPings[activeUserId] = Date.now();
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
     }
     next();
   });
 
-  // 1. Get contacts with dynamic online presence state calculated relative to real API polling
-  app.get("/api/contacts", (req, res) => {
-    const activeUserId = req.query.activeUser as string;
-    if (activeUserId) {
-      contactPings[activeUserId] = Date.now();
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+  // 1. GET /api/contacts - Real presence & exact last connection timestamp
+  app.get('/api/contacts', (req, res) => {
+    const activeUser = req.query.activeUser as string | undefined;
+    const now = Date.now();
+
+    if (activeUser) {
+      recordUserActivity(activeUser);
     }
 
-    const now = Date.now();
     const updatedContacts = db.contacts.map(contact => {
-      // If the contact parsed is the active current caller, consider them online
       const lastSeen = contactPings[contact.id] || 0;
-      const isOnline = (now - lastSeen) < 10000; // Connected in the last 10 seconds
-      
-      let lastActiveString = contact.lastActive;
-      const lastActiveTimestamp = isOnline 
-        ? now 
-        : (lastSeen > 0 ? lastSeen : (contact.lastActiveTimestamp || (now - 120 * 60 * 1000)));
+      // A user is online ONLY if their device sent a real heartbeat within the last 15 seconds
+      const isNowOnline = lastSeen > 0 && (now - lastSeen) < 15000;
 
-      if (isOnline) {
-        lastActiveString = "En línea";
-      } else if (lastSeen > 0) {
-        const timeStr = new Date(lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        lastActiveString = `Últ. vez hoy a las ${timeStr}`;
+      const persistedTs =
+        typeof contact.lastActiveTimestamp === 'number' &&
+        contact.lastActiveTimestamp > 0 &&
+        contact.lastActiveTimestamp <= now + 60000
+          ? contact.lastActiveTimestamp
+          : undefined;
+
+      const exactTimestamp = lastSeen > 0 ? lastSeen : persistedTs;
+
+      if (contact.isOnline !== isNowOnline || contact.lastActiveTimestamp !== exactTimestamp) {
+        contact.isOnline = isNowOnline;
+        contact.lastActiveTimestamp = exactTimestamp;
+        contact.lastActive = isNowOnline
+          ? 'En línea'
+          : exactTimestamp
+            ? contact.lastActive
+            : 'Sin conexión registrada';
       }
 
       return {
         ...contact,
-        isOnline: isOnline || contact.id === activeUserId, // local user is always online for themselves
-        lastActive: lastActiveString,
-        lastActiveTimestamp
+        isOnline: isNowOnline,
+        lastActiveTimestamp: exactTimestamp,
+        lastActive: isNowOnline
+          ? 'En línea'
+          : exactTimestamp
+            ? 'Desconectado'
+            : 'Sin conexión registrada'
       };
     });
 
     res.json(updatedContacts);
   });
 
-  // 2. Create new family member (restricted to Papá José admin in UI, also validated here)
-  app.post("/api/contacts", (req, res) => {
-    const { contact, activeUser } = req.body;
-    if (!contact || !contact.name || !contact.relationship) {
-      res.status(400).json({ error: "Datos del familiar incompletos" });
-      return;
+  // 1b. POST /api/presence-offline - Immediately marks a user offline with exact disconnection timestamp
+  app.post('/api/presence-offline', (req, res) => {
+    const { userId } = req.body;
+    if (userId && typeof userId === 'string') {
+      const now = Date.now();
+      delete contactPings[userId];
+      delete typingStates[userId];
+
+      const contact = db.contacts.find(c => c.id === userId);
+      if (contact) {
+        contact.isOnline = false;
+        contact.lastActiveTimestamp = now;
+        contact.lastActive = 'Desconectado';
+        saveDB();
+      }
     }
-
-    // Double-check if the sender is authorized
-    if (activeUser !== 'papa-jose') {
-      res.status(403).json({ error: "Solo el administrador (Papá) puede agregar nuevos familiares" });
-      return;
-    }
-
-    db.contacts.push({
-      id: contact.id || `member-${Date.now()}`,
-      name: contact.name,
-      avatarEmoji: contact.avatarEmoji || '🧑🏽',
-      avatarColor: contact.avatarColor || 'bg-slate-500',
-      relationship: contact.relationship,
-      role: 'member',
-      isOnline: false,
-      lastActive: "Agregado recientemente",
-      lastActiveTimestamp: Date.now()
-    });
-
-    saveDB();
-    res.json({ success: true, contacts: db.contacts });
+    res.json({ success: true });
   });
 
-  // 3. Get all messages
-  app.get("/api/messages", (req, res) => {
+  // 2. GET /api/typing - Returns active typing users within last 4 seconds
+  app.get('/api/typing', (req, res) => {
+    const now = Date.now();
+    const activeTypers: Record<string, string> = {};
+    Object.keys(typingStates).forEach(uid => {
+      if (now - typingStates[uid].timestamp < 4000) {
+        activeTypers[uid] = typingStates[uid].roomId;
+      } else {
+        delete typingStates[uid];
+      }
+    });
+    res.json(activeTypers);
+  });
+
+  // 3. POST /api/typing - Sets typing status for a user in a specific room
+  app.post('/api/typing', (req, res) => {
+    const { userId, roomId, isTyping } = req.body;
+    if (userId) {
+      recordUserActivity(userId);
+      if (isTyping && roomId) {
+        typingStates[userId] = { roomId, timestamp: Date.now() };
+      } else {
+        delete typingStates[userId];
+      }
+    }
+    res.json({ success: true });
+  });
+
+  // 4. GET /api/messages - Returns all persisted messages and updates real delivery/read statuses
+  app.get('/api/messages', (req, res) => {
+    const activeUser = req.query.activeUser as string | undefined;
+    const activeRoom = req.query.activeRoom as string | undefined;
+
+    if (activeUser) {
+      recordUserActivity(activeUser);
+
+      let statusChanged = false;
+      db.messages.forEach(msg => {
+        // Only update status for messages sent by OTHER users to activeUser (or to family-group)
+        if (msg.senderId === activeUser) return;
+
+        const isForActiveUser =
+          msg.receiverId === activeUser || msg.receiverId === 'family-group';
+
+        if (!isForActiveUser) return;
+
+        // Determine if activeUser currently has this conversation open on screen
+        const isViewingThisRoom =
+          (msg.receiverId === 'family-group' && activeRoom === 'family-group') ||
+          (msg.receiverId === activeUser && activeRoom === msg.senderId);
+
+        if (isViewingThisRoom && msg.status !== 'read') {
+          msg.status = 'read';
+          statusChanged = true;
+        } else if (!isViewingThisRoom && msg.status === 'sent') {
+          msg.status = 'delivered';
+          statusChanged = true;
+        }
+      });
+
+      if (statusChanged) {
+        saveDB();
+      }
+    }
+
     res.json(db.messages);
   });
 
-  // Helper to dynamically simulate warm family replies with realistic typing state
-  function simulateReply(senderId: string, receiverId: string) {
-    // Determine who will reply
-    let replierId: string = "";
-    let targetRoomId: string = "";
-
-    if (receiverId === 'family-group') {
-      // 45% chance to trigger a reply in group chats to keep it realistic without spam
-      if (Math.random() > 0.45) return;
-
-      // Choose a random contact who is not the sender
-      const eligible = db.contacts.filter(c => c.id !== senderId);
-      if (eligible.length === 0) return;
-      const randomContact = eligible[Math.floor(Math.random() * eligible.length)];
-      replierId = randomContact.id;
-      targetRoomId = 'family-group';
-    } else {
-      replierId = receiverId;
-      targetRoomId = senderId; // Direct message back to sender
+  // 4b. POST /api/messages/read - Marks messages in a room as read when recipient opens the chat
+  app.post('/api/messages/read', (req, res) => {
+    const { userId, roomId } = req.body;
+    if (!userId || !roomId) {
+      return res.status(400).json({ error: 'Missing userId or roomId' });
     }
 
-    const replier = db.contacts.find(c => c.id === replierId);
-    if (!replier) return;
+    recordUserActivity(userId);
+    let changed = false;
 
-    // Set of cute, warm, contextual family quotes
-    let text = "";
-    if (replierId === 'mama-tila') {
-      const choices = [
-        "¡Hola mi amor de mi vida! Qué lindo leerte por aquí. ¿Cómo va tu día? Ya estoy cocinando algo rico para cuando nos juntemos. Te mando un beso gigante y bendiciones hijo/a 😘❤️🍲",
-        "Qué bueno saber de ti. Dios me lo bendiga y cuide de todo peligro. Cuéntame si vas a venir a almorzar más tarde 🙏💖",
-        "¡Qué alegría este mensaje! ¿Cómo va todo? No olvides abrigarte si sales, que hay un poco de frío. ¡Te quiero de aquí al cielo! 🥰✨"
-      ];
-      text = choices[Math.floor(Math.random() * choices.length)];
-    } else if (replierId === 'hijo-christian') {
-      const choices = [
-        "¡Epa! Qué tal todo? Súper bien por acá, saliendo de una clase y revisando unas cosas de la carrera. ¿Hablamos en un rato más? 🤙🏼💻",
-        "Holaaa! Voy terminando un proyecto. Al rato los llamo para ponernos al día. ¡Que tengan un excelente día! ⚡",
-        "¡Qué buena onda leerte! Acá ando descansando un ratito. Espero que todo marche de maravilla hoy."
-      ];
-      text = choices[Math.floor(Math.random() * choices.length)];
-    } else if (replierId === 'hijo-cristopher') {
-      const choices = [
-        "¡Buenas buenas! Todo de diez por acá, jugando un ratito y haciendo mis tareas antes del almuerzo 🎮✌️",
-        "Hola! Me alegra mucho saber de ti. ¿Qué cuentas de nuevo el día de hoy? jaja",
-        "¡Hola! Ya estoy listo para comer la cazuela deliciosa de mamá jaja, ¡un gran abrazo para todos! 🍲🏡"
-      ];
-      text = choices[Math.floor(Math.random() * choices.length)];
-    } else if (replierId === 'papa-jose') {
-      const choices = [
-        "Hola a todos. Por aquí todo bien en el trabajo, terminando unas gestiones. Cuídense mucho en el camino.",
-        "Qué alegría ver que están comunicados. Que tengan una excelente jornada, nos vemos más tarde en casa. Abrazo grande.",
-        "Hola, todo excelente de este lado. Al rato me conecto idealmente para ver qué plan tenemos hoy, bendiciones."
-      ];
-      text = choices[Math.floor(Math.random() * choices.length)];
-    } else {
-      text = `¡Hola! Qué gusto leerte. Te mando un gran saludo y un fuerte abrazo familiar. 😊🏡`;
-    }
+    db.messages.forEach(msg => {
+      if (msg.senderId === userId) return;
+      const inRoom =
+        roomId === 'family-group'
+          ? msg.receiverId === 'family-group'
+          : msg.senderId === roomId && msg.receiverId === userId;
 
-    // --- Step 1: Deliberately turn them online and typing after 1 second ---
-    setTimeout(() => {
-      contactPings[replierId] = Date.now() + 15000; // Force online state
-      typingStates[replierId] = { roomId: targetRoomId, timestamp: Date.now() };
-    }, 1000);
-
-    // --- Step 2: Clear typing after 4.5 seconds and push the reply ---
-    setTimeout(() => {
-      delete typingStates[replierId];
-      contactPings[replierId] = Date.now();
-
-      const replyMsg: Message = {
-        id: 'msg-' + Date.now(),
-        senderId: replierId,
-        senderName: replier.name,
-        receiverId: targetRoomId,
-        text: text,
-        timestamp: new Date().toISOString(),
-        status: 'read',
-        messageType: 'text'
-      };
-
-      db.messages.push(replyMsg);
-      saveDB();
-      
-      // Send standard service Web Push notification if they have subscriptions
-      if (targetRoomId === 'family-group') {
-        db.contacts.forEach(contact => {
-          if (contact.id !== replierId) {
-            sendPushNotification(contact.id, {
-              title: `FamiChat 🏡 ${replier.name}`,
-              body: text,
-              url: `/?roomId=family-group`,
-              tag: 'family-group'
-            });
-          }
-        });
-      } else {
-        sendPushNotification(targetRoomId, {
-          title: `FamiChat ✉️ de ${replier.name}`,
-          body: text,
-          url: `/?roomId=${replierId}`,
-          tag: `dm-${replierId}`
-        });
+      if (inRoom && msg.status !== 'read') {
+        msg.status = 'read';
+        changed = true;
       }
-    }, 4500);
-  }
+    });
 
-  // 4. Send a new message
-  app.post("/api/messages", (req, res) => {
-    const { id, senderId, senderName, receiverId, text, messageType, mediaUrl, replyToId, replyToText, replyToSenderName } = req.body;
-    if (!senderId || !receiverId) {
-      res.status(400).json({ error: "Remitente o destinatario ausentes" });
-      return;
+    if (changed) {
+      saveDB();
     }
 
-    const newMessage: Message = {
-      id: id || `msg-${Date.now()}`,
+    res.json({ success: true, updated: changed });
+  });
+
+  // 5. POST /api/messages - Appends a real message to persistent DB (with idempotency deduplication)
+  app.post('/api/messages', (req, res) => {
+    const {
+      id,
       senderId,
       senderName,
       receiverId,
-      text: text || "",
+      text,
+      activeUser,
+      messageType,
+      mediaUrl,
+      replyToId,
+      replyToText,
+      replyToSenderName
+    } = req.body;
+
+    if (!senderId || !receiverId || (!text && !mediaUrl)) {
+      return res.status(400).json({ error: 'Missing message fields' });
+    }
+
+    recordUserActivity(activeUser || senderId, true);
+    delete typingStates[senderId];
+
+    // Idempotency check: if message with this ID was already saved, return it without duplicating
+    if (id) {
+      const existing = db.messages.find(m => m.id === id);
+      if (existing) {
+        return res.status(200).json(existing);
+      }
+    }
+
+    // Check if recipient is currently online right now to set initial status ('sent' vs 'delivered')
+    const now = Date.now();
+    let initialStatus: 'sent' | 'delivered' = 'sent';
+    if (receiverId === 'family-group') {
+      const anyOtherMemberOnline = db.contacts.some(
+        c => c.id !== senderId && contactPings[c.id] && (now - contactPings[c.id]) < 15000
+      );
+      if (anyOtherMemberOnline) {
+        initialStatus = 'delivered';
+      }
+    } else {
+      const recipientLastSeen = contactPings[receiverId] || 0;
+      if (recipientLastSeen > 0 && (now - recipientLastSeen) < 15000) {
+        initialStatus = 'delivered';
+      }
+    }
+
+    const newMessage: Message = {
+      id: id || 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+      senderId,
+      senderName,
+      receiverId,
+      text: text || '',
       timestamp: new Date().toISOString(),
-      status: 'sent',
+      status: initialStatus,
       messageType: messageType || 'text',
       mediaUrl: mediaUrl || undefined,
       replyToId: replyToId || undefined,
@@ -451,312 +513,172 @@ async function startServer() {
     db.messages.push(newMessage);
     saveDB();
 
-    simulateReply(senderId, receiverId);
+    sendPushNotificationsForMessage(newMessage).catch(err => {
+      console.error('Error dispatching push notifications:', err);
+    });
 
-    // Dispatch Web Push Notifications to relevant family members
-    if (receiverId === 'family-group') {
-      // Notify all other family members
-      db.contacts.forEach(contact => {
-        if (contact.id !== senderId) {
-          sendPushNotification(contact.id, {
-            title: `FamiChat 🏡 ${senderName}`,
-            body: messageType === 'image' 
-              ? '📷 Foto de familia' 
-              : messageType === 'audio' 
-                ? '🎤 Nota de voz familiar' 
-                : text || '',
-            url: `/?roomId=family-group`,
-            tag: 'family-group'
-          });
-        }
-      });
-    } else {
-      // Direct message - notify only the recipient
-      sendPushNotification(receiverId, {
-        title: `FamiChat ✉️ de ${senderName}`,
-        body: messageType === 'image' 
-          ? '📷 Foto familiar privada' 
-          : messageType === 'audio' 
-            ? '🎤 Nota de voz privada' 
-            : text || '',
-        url: `/?roomId=${senderId}`,
-        tag: `dm-${senderId}`
-      });
-    }
-
-    // Async simulated progression for real-time visual receipts
-    setTimeout(() => {
-      const idx = db.messages.findIndex(m => m.id === newMessage.id);
-      if (idx !== -1 && db.messages[idx].status === 'sent') {
-        db.messages[idx].status = 'delivered';
-        saveDB();
-      }
-    }, 1200);
-
-    setTimeout(() => {
-      const idx = db.messages.findIndex(m => m.id === newMessage.id);
-      if (idx !== -1 && db.messages[idx].status === 'delivered') {
-        db.messages[idx].status = 'read';
-        saveDB();
-      }
-    }, 3200);
-
-    res.json(newMessage);
+    res.status(201).json(newMessage);
   });
 
-  // 5. Clear entire chat conversation room (Borrar conversaciones)
-  app.delete("/api/messages", (req, res) => {
+  // 6. POST /api/contacts - Admin only: Adds a new family member
+  app.post('/api/contacts', (req, res) => {
+    const { contact, activeUser } = req.body;
+    if (!contact || !contact.id || !contact.name) {
+      return res.status(400).json({ error: 'Invalid contact data' });
+    }
+
+    if (activeUser) {
+      recordUserActivity(activeUser, true);
+    }
+
+    const newContact: Contact = {
+      ...contact,
+      role: 'member',
+      isOnline: false,
+      lastActiveTimestamp: undefined,
+      lastActive: 'Sin conexión registrada'
+    };
+
+    db.contacts.push(newContact);
+    saveDB();
+
+    res.status(201).json({ contact: newContact, contacts: db.contacts });
+  });
+
+  // 7. DELETE /api/messages - Clears message history for a specific chat channel
+  app.delete('/api/messages', (req, res) => {
     const { channelId, userId } = req.body;
-    if (!channelId || !userId) {
-       res.status(400).json({ error: "Faltan parámetros para borrar conversación" });
-       return;
+
+    if (!channelId) {
+      return res.status(400).json({ error: 'Missing channelId to clear' });
     }
 
     if (channelId === 'family-group') {
       db.messages = db.messages.filter(m => m.receiverId !== 'family-group');
     } else {
-      // Exclude mutual PM exchange
       db.messages = db.messages.filter(m => {
-        const isBetweenThem = (m.senderId === userId && m.receiverId === channelId) ||
-                              (m.senderId === channelId && m.receiverId === userId);
-        return !isBetweenThem;
+        const isBetweenUsers =
+          (m.senderId === userId && m.receiverId === channelId) ||
+          (m.senderId === channelId && m.receiverId === userId);
+        return !isBetweenUsers;
       });
     }
 
     saveDB();
-    res.json({ success: true });
+    res.json({ success: true, remainingCount: db.messages.length });
   });
 
-  // 6. Delete singular message
-  app.delete("/api/messages/:id", (req, res) => {
-    const messageId = req.params.id;
-    db.messages = db.messages.filter(m => m.id !== messageId);
-    saveDB();
-    res.json({ success: true });
+  // 8. DELETE /api/messages/:id - Deletes a single specific message by ID
+  app.delete('/api/messages/:id', (req, res) => {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Missing message ID' });
+    }
+
+    const initialLength = db.messages.length;
+    db.messages = db.messages.filter(m => m.id !== id);
+
+    if (db.messages.length < initialLength) {
+      saveDB();
+    }
+
+    res.json({ success: true, removedId: id });
   });
 
-  // 6.5. React to a message with an emoji
-  app.post("/api/messages/:id/react", (req, res) => {
-    const messageId = req.params.id;
+  // 9. POST /api/messages/:id/react - Adds or toggles an emoji reaction on a message
+  app.post('/api/messages/:id/react', (req, res) => {
+    const { id } = req.params;
     const { reaction } = req.body;
-    if (!reaction) {
-      res.status(400).json({ error: "Falta el emoji de reacción" });
-      return;
+
+    if (!id || !reaction) {
+      return res.status(400).json({ error: 'Missing message ID or reaction emoji' });
     }
 
-    const msg = db.messages.find(m => m.id === messageId);
-    if (msg) {
-      if (!msg.reactions) {
-        msg.reactions = [];
-      }
-      
-      // Toggle reaction: if exists, remove it. Otherwise add it.
-      const index = msg.reactions.indexOf(reaction);
-      if (index !== -1) {
-        msg.reactions.splice(index, 1);
-      } else {
-        msg.reactions.push(reaction);
-      }
-      
-      saveDB();
-      res.json({ success: true, reactions: msg.reactions });
+    const msg = db.messages.find(m => m.id === id);
+    if (!msg) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    if (!msg.reactions) {
+      msg.reactions = [];
+    }
+
+    const existingIndex = msg.reactions.indexOf(reaction);
+    if (existingIndex !== -1) {
+      msg.reactions.splice(existingIndex, 1);
     } else {
-      res.status(404).json({ error: "Mensaje no encontrado" });
+      msg.reactions.push(reaction);
     }
+
+    saveDB();
+    res.json({ success: true, message: msg });
   });
 
-  // 6.7. Toggle star on a message
-  app.post("/api/messages/:id/star", (req, res) => {
-    const messageId = req.params.id;
-    const msg = db.messages.find(m => m.id === messageId);
-    if (msg) {
-      msg.isStarred = !msg.isStarred;
-      saveDB();
-      res.json({ success: true, isStarred: msg.isStarred });
-    } else {
-      res.status(404).json({ error: "Mensaje no encontrado" });
+  // 10. POST /api/messages/:id/star - Toggles starred state on a message
+  app.post('/api/messages/:id/star', (req, res) => {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Missing message ID' });
     }
+
+    const msg = db.messages.find(m => m.id === id);
+    if (!msg) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    msg.isStarred = !msg.isStarred;
+    saveDB();
+    res.json({ success: true, message: msg });
   });
 
-  // 7. Get typing states
-  app.get("/api/typing", (req, res) => {
-    const now = Date.now();
-    const activeTyping: Record<string, string> = {}; // userId -> roomId
-    
-    Object.entries(typingStates).forEach(([userId, payload]) => {
-      if ((now - payload.timestamp) < 4000) { // Active if updated in last 4 seconds
-        activeTyping[userId] = payload.roomId;
-      }
-    });
-
-    res.json(activeTyping);
+  // 11. Web Push Notification Endpoints
+  app.get('/api/push-public-key', (req, res) => {
+    res.json({ publicKey: db.vapidKeys?.publicKey || '' });
   });
 
-  // 8. Register writing/typing state
-  app.post("/api/typing", (req, res) => {
-    const { userId, roomId, isTyping } = req.body;
-    if (userId) {
-      if (isTyping) {
-        typingStates[userId] = { roomId, timestamp: Date.now() };
-      } else {
-        delete typingStates[userId];
-      }
-    }
-    res.json({ success: true });
-  });
-
-  // 8.5. Interactive presence simulator endpoint
-  app.post("/api/presence-simulation", (req, res) => {
-    const { contactId, state, activeUserId, text } = req.body;
-    if (!contactId || !state) {
-      res.status(400).json({ error: "Parámetros incompletos" });
-      return;
-    }
-
-    const now = Date.now();
-    const contact = db.contacts.find(c => c.id === contactId);
-    if (!contact) {
-      res.status(404).json({ error: "Contacto no encontrado" });
-      return;
-    }
-
-    if (state === 'online') {
-      // Set future ping so it stays online indefinitely
-      contactPings[contactId] = now + 1000 * 60 * 60 * 24;
-      delete typingStates[contactId];
-    } else if (state === 'offline') {
-      // Set to 1 hour ago so it displays correctly as offline
-      contactPings[contactId] = now - 60 * 60 * 1000;
-      delete typingStates[contactId];
-    } else if (state === 'typing_group') {
-      // Set online and typing in group chat
-      contactPings[contactId] = now + 1000 * 60 * 60 * 24;
-      typingStates[contactId] = { roomId: 'family-group', timestamp: now + 1000 * 60 * 60 * 24 };
-    } else if (state === 'typing_private') {
-      // Set online and typing in direct message to current user
-      const targetRoom = activeUserId || 'papa-jose';
-      contactPings[contactId] = now + 1000 * 60 * 60 * 24;
-      typingStates[contactId] = { roomId: targetRoom, timestamp: now + 1000 * 60 * 60 * 24 };
-    } else if (state === 'trigger_message') {
-      // Simulate real incoming message instantly
-      const msgText = text || "¡Hola familia! 👋😊";
-      
-      // Stop typing
-      delete typingStates[contactId];
-      contactPings[contactId] = now;
-
-      const randomMsgId = 'msg-' + now;
-      const targetRoomId = activeUserId || 'family-group';
-
-      const simulatedMsg: Message = {
-        id: randomMsgId,
-        senderId: contactId,
-        senderName: contact.name,
-        receiverId: targetRoomId,
-        text: msgText,
-        timestamp: new Date().toISOString(),
-        status: 'read',
-        messageType: 'text'
-      };
-
-      db.messages.push(simulatedMsg);
-      saveDB();
-
-      // Trigger standard browser push
-      if (targetRoomId === 'family-group') {
-        db.contacts.forEach(c => {
-          if (c.id !== contactId) {
-            sendPushNotification(c.id, {
-              title: `FamiChat 🏡 ${contact.name}`,
-              body: msgText,
-              url: `/?roomId=family-group`,
-              tag: 'family-group'
-            });
-          }
-        });
-      } else {
-        sendPushNotification(targetRoomId, {
-          title: `FamiChat ✉️ de ${contact.name}`,
-          body: msgText,
-          url: `/?roomId=${contactId}`,
-          tag: `dm-${contactId}`
-        });
-      }
-    }
-
-    res.json({ success: true });
-  });
-
-  // 9. Web Push Subscription routes
-  app.get("/api/push-public-key", (req, res) => {
-    if (db.vapidKeys) {
-      res.json({ publicKey: db.vapidKeys.publicKey });
-    } else {
-      res.status(500).json({ error: "No se han generado llaves VAPID" });
-    }
-  });
-
-  app.post("/api/push-subscribe", (req, res) => {
+  app.post('/api/push-subscribe', (req, res) => {
     const { userId, subscription } = req.body;
-    if (!userId || !subscription) {
-      res.status(400).json({ error: "Faltan parámetros de suscripción" });
-      return;
+    if (!userId || !subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: 'Invalid push subscription payload' });
     }
 
     if (!db.pushSubscriptions) {
       db.pushSubscriptions = [];
     }
 
-    // Guard against duplicates
-    const idx = db.pushSubscriptions.findIndex(s => s.subscription.endpoint === subscription.endpoint);
-    if (idx !== -1) {
-      db.pushSubscriptions[idx].userId = userId;
+    const existingIdx = db.pushSubscriptions.findIndex(
+      s => s.subscription.endpoint === subscription.endpoint
+    );
+
+    if (existingIdx !== -1) {
+      db.pushSubscriptions[existingIdx].userId = userId;
+      db.pushSubscriptions[existingIdx].subscription = subscription;
     } else {
       db.pushSubscriptions.push({ userId, subscription });
     }
 
     saveDB();
-    res.json({ success: true });
+    res.status(201).json({ success: true });
   });
 
-  app.post("/api/push-unsubscribe", (req, res) => {
-    const { userId, endpoint } = req.body;
-    if (db.pushSubscriptions) {
+  app.post('/api/push-unsubscribe', (req, res) => {
+    const { endpoint } = req.body;
+    if (endpoint && db.pushSubscriptions) {
       db.pushSubscriptions = db.pushSubscriptions.filter(
-        s => !(s.userId === userId && s.subscription.endpoint === endpoint)
+        s => s.subscription.endpoint !== endpoint
       );
       saveDB();
     }
     res.json({ success: true });
   });
 
-  // Mount Vite development middleware or serve bundle assets for Cloud Run ingress stability
-  const distExists = fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'));
-  const isDevMode = process.env.NODE_ENV !== "production" || !distExists;
-
-  if (isDevMode) {
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa",
+      appType: 'spa',
     });
     app.use(vite.middlewares);
-
-    app.get('*', async (req, res, next) => {
-      const url = req.originalUrl;
-      try {
-        const indexPath = path.resolve(process.cwd(), 'index.html');
-        if (fs.existsSync(indexPath)) {
-          let template = fs.readFileSync(indexPath, 'utf-8');
-          template = await vite.transformIndexHtml(url, template);
-          res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
-        } else {
-          res.status(404).send("index.html not found");
-        }
-      } catch (e) {
-        vite.ssrFixStacktrace(e as Error);
-        next(e);
-      }
-    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
@@ -765,8 +687,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server executing live on http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`FamiChat Real-Time Server running on http://localhost:${PORT}`);
   });
 }
 

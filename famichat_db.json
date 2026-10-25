@@ -1,0 +1,54 @@
+{
+  "contacts": [
+    {
+      "id": "papa-jose",
+      "name": "Papá José Manuel",
+      "avatarEmoji": "👨🏽‍💼",
+      "avatarColor": "bg-teal-600",
+      "relationship": "Papá (Admin)",
+      "role": "admin",
+      "isOnline": false,
+      "lastActive": "Sin conexión registrada",
+      "phone": "+56 9 1234 5678"
+    },
+    {
+      "id": "mama-tila",
+      "name": "Mamá Tila del Carmen",
+      "avatarEmoji": "👩🏽‍🦱",
+      "avatarColor": "bg-rose-500",
+      "relationship": "Mamá",
+      "role": "member",
+      "isOnline": false,
+      "lastActive": "Sin conexión registrada",
+      "phone": "+56 9 8765 4321"
+    },
+    {
+      "id": "hijo-christian",
+      "name": "Christian Fernando",
+      "avatarEmoji": "🧑🏽‍💻",
+      "avatarColor": "bg-sky-500",
+      "relationship": "Hijo",
+      "role": "member",
+      "isOnline": false,
+      "lastActive": "Sin conexión registrada",
+      "phone": "+56 9 5555 1212"
+    },
+    {
+      "id": "hijo-cristopher",
+      "name": "Cristopher",
+      "avatarEmoji": "🎮",
+      "avatarColor": "bg-amber-500",
+      "relationship": "Hijo",
+      "role": "member",
+      "isOnline": false,
+      "lastActive": "Sin conexión registrada",
+      "phone": "+56 9 7777 3434"
+    }
+  ],
+  "messages": [],
+  "pushSubscriptions": [],
+  "vapidKeys": {
+    "publicKey": "BKqrM-U8XIf3NwQ-_0y81adnsKW5wWVEiy2h7y_EOa_7t8W_DNM_-oUPzWkqqy5O12gEI2Q0W_87o-0tfAiTXxE",
+    "privateKey": "ctVUShysU5TwVQQ9-as4_vm_KdMHcgudmvwEOrBp0aA"
+  }
+}

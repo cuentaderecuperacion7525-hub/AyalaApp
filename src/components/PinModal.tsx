@@ -5,9 +5,17 @@ interface PinModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  description?: string;
+  successMessage?: string;
 }
 
-export const PinModal: React.FC<PinModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const PinModal: React.FC<PinModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  description = 'Solo el administrador principal (Papá) puede añadir miembros. Introduce la clave de seguridad para continuar.',
+  successMessage = 'Acceso concedido...',
+}) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
@@ -82,7 +90,7 @@ export const PinModal: React.FC<PinModalProps> = ({ isOpen, onClose, onSuccess }
                 <ShieldCheck className="w-8 h-8" />
               </div>
               <p className="font-extrabold text-emerald-600 text-sm">Clave Correcta</p>
-              <p className="text-xs text-slate-450 font-medium">Acceso concedido para agregar familiar...</p>
+              <p className="text-xs text-slate-450 font-medium">{successMessage}</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="w-full flex flex-col items-center space-y-4">
@@ -93,7 +101,7 @@ export const PinModal: React.FC<PinModalProps> = ({ isOpen, onClose, onSuccess }
               <div className="text-center space-y-1">
                 <p className="font-bold text-slate-800 text-sm">Ingresar Clave Familiar</p>
                 <p className="text-xs text-slate-500 max-w-[250px] leading-relaxed mx-auto">
-                  Solo el administrador principal (Papá) puede añadir miembros. Introduce la clave de seguridad para continuar.
+                  {description}
                 </p>
               </div>
 

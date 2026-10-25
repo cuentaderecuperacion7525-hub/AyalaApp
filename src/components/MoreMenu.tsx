@@ -60,6 +60,10 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
   const [customStatus, setCustomStatus] = useState(() => {
     return localStorage.getItem(`famichat_status_${currentUser.id}`) || 'En línea';
   });
+
+  useEffect(() => {
+    setCustomStatus(localStorage.getItem(`famichat_status_${currentUser.id}`) || 'En línea');
+  }, [currentUser.id]);
   
   const menuRef = useRef<HTMLDivElement>(null);
 
