@@ -199,7 +199,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
                   </>
                 )}
               </div>
-              <div className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer ${soundOn ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+              <div className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer ${soundOn ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
                 <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform ${soundOn ? 'translate-x-3.5' : 'translate-x-0'}`} />
               </div>
             </button>
@@ -224,7 +224,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
                   </>
                 )}
               </div>
-              <div className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer ${darkMode ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+              <div className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer ${darkMode ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
                 <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform ${darkMode ? 'translate-x-3.5' : 'translate-x-0'}`} />
               </div>
             </button>
@@ -243,7 +243,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
                     <span className="block text-[8.5px] text-slate-400 font-normal">Recibe mensajes apagado</span>
                   </div>
                 </div>
-                <div className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer ${pushEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                <div className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer ${pushEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
                   <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform ${pushEnabled ? 'translate-x-3.5' : 'translate-x-0'}`} />
                 </div>
               </button>
@@ -256,54 +256,68 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               disabled={checkingUpdate}
               className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer disabled:opacity-60"
             >
-              <div className="flex items-center gap-1.5 min-w-0">
-                <DownloadCloud className={`w-4 h-4 shrink-0 ${checkingUpdate ? 'animate-bounce text-teal-600' : hasUpdate ? 'text-emerald-600' : 'text-teal-600'}`} />
-                <div className="min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
+                <DownloadCloud
+                  className={`w-4 h-4 shrink-0 ${
+                    checkingUpdate
+                      ? 'animate-bounce text-teal-600'
+                      : hasUpdate
+                      ? 'text-emerald-600'
+                      : 'text-teal-600'
+                  }`}
+                />
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span>Buscar actualizaciones</span>
                     {hasUpdate && (
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                     )}
                   </div>
-                  <span className="block text-[9px] text-slate-500 font-normal truncate">
-                    {checkingUpdate
-                      ? 'Comprobando en GitHub...'
-                      : updateCheckFeedback
-                      ? updateCheckFeedback
-                      : `Versión instalada: v${installedVersion}`}
+
+                  <span className="block text-[8.5px] text-slate-400 font-normal truncate">
+                    {checkingUpdate ? (
+                      'Comprobando en GitHub...'
+                    ) : updateCheckFeedback ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                        {updateCheckFeedback}
+                      </span>
+                    ) : hasUpdate ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                        Nueva versión disponible • Instalada v{installedVersion}
+                      </span>
+                    ) : (
+                      `Versión instalada: v${installedVersion}`
+                    )}
                   </span>
                 </div>
               </div>
+
               <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             </button>
 
             {/* Interruptor: Buscar actualizaciones automáticamente */}
-            <div className="w-full flex items-center justify-between p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700">
-              <button
-                type="button"
-                onClick={() => onToggleAutoCheckUpdates(!autoCheckUpdates)}
-                className="flex items-center gap-1.5 flex-1 text-left cursor-pointer select-none"
-              >
-                <RefreshCw className="w-4 h-4 shrink-0 text-teal-600" />
-                <div>
-                  <span>Buscar actualizaciones automáticamente</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoCheckUpdates}
+              onClick={() => onToggleAutoCheckUpdates(!autoCheckUpdates)}
+              title="Activar o desactivar búsqueda automática"
+              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer select-none"
+            >
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
+                <RefreshCw className={`w-4 h-4 shrink-0 ${autoCheckUpdates ? 'text-teal-600' : 'text-slate-400'}`} />
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate">Buscar actualizaciones automáticamente</span>
                   <span className="block text-[8.5px] text-slate-400 font-normal">
                     Comprobar al abrir • v{installedVersion}
                   </span>
                 </div>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleAutoCheckUpdates(!autoCheckUpdates);
-                }}
-                className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer shrink-0 ml-2 ${autoCheckUpdates ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                title="Activar o desactivar búsqueda automática"
-              >
+              </div>
+
+              <div className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer shrink-0 ${autoCheckUpdates ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
                 <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform ${autoCheckUpdates ? 'translate-x-3.5' : 'translate-x-0'}`} />
-              </button>
-            </div>
+              </div>
+            </button>
           </div>
 
           {/* Multiperfil & Switcher de Perfil */}
@@ -331,7 +345,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               onClick={() => {
                 onOpenCredits();
               }}
-              className="w-full flex items-center justify-between gap-2 p-1.5 hover:bg-slate-50 border border-teal-100 bg-gradient-to-br from-teal-50/10 to-teal-100/10 rounded-xl transition-all cursor-pointer text-left shadow-sm mt-1"
+              className="w-full flex items-center justify-between gap-2 p-1.5 hover:bg-slate-50 border border-slate-150 bg-slate-50/50 rounded-xl transition-all cursor-pointer text-left text-xs font-semibold text-slate-700 mt-1"
             >
               <div className="flex items-center gap-1.5 min-w-0">
                 <Cpu className="w-4 h-4 text-teal-600 shrink-0" />

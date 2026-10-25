@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
 import { Contact } from '../types';
-import { ShieldCheck, Lock, Check, HelpCircle, ArrowLeft, KeyRound, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Lock, ArrowLeft, AlertCircle, Delete } from 'lucide-react';
 
 interface WelcomeGatewayProps {
   contacts: Contact[];
   onSelectUser: (user: Contact) => void;
 }
 
+// Letras decorativas bajo cada número (solo diseño, el PIN sigue siendo numérico)
+const KEY_LETTERS: Record<string, string> = {
+  '1': '', '2': 'ABC', '3': 'DEF', '4': 'GHI', '5': 'JKL',
+  '6': 'MNO', '7': 'PQRS', '8': 'TUV', '9': 'WXYZ', '0': '',
+};
+
+const KEY_HEIGHT = 'clamp(52px, 8.2dvh, 76px)';
+
 export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSelectUser }) => {
   const [selectedCandidate, setSelectedCandidate] = useState<Contact | null>(null);
   const [pinCode, setPinCode] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [shake, setShake] = useState<boolean>(false); // solo animación visual
 
   const getExpectedPin = () => {
     return localStorage.getItem('famichat_admin_pin') || '1122';
@@ -29,13 +38,26 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
     }
   };
 
+  // Retroalimentación visual/táctil al fallar (no afecta la lógica)
+  const triggerErrorFeedback = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 350);
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(120);
+      }
+    } catch {
+      /* si el dispositivo no vibra, se ignora */
+    }
+  };
+
   const handleKeypadPress = (num: string) => {
     setPinError('');
-    if (pinCode.length >= 4) return;
+    const expected = getExpectedPin();
+    if (pinCode.length >= expected.length) return;
     const nextPin = pinCode + num;
     setPinCode(nextPin);
 
-    const expected = getExpectedPin();
     if (nextPin === expected) {
       setIsSuccess(true);
       setTimeout(() => {
@@ -47,6 +69,7 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
       setTimeout(() => {
         setPinError('Clave de administrador incorrecta. Acceso denegado.');
         setPinCode('');
+        triggerErrorFeedback();
       }, 150);
     }
   };
@@ -58,124 +81,149 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
 
   const KEYPAD_NUMBERS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
+  // Tecla numérica: número arriba + letras pequeñas debajo (línea siempre reservada)
+  const renderNumberKey = (num: string) => (
+    <button
+      key={num}
+      type="button"
+      disabled={isSuccess}
+      onClick={() => handleKeypadPress(num)}
+      aria-label={`Número ${num}`}
+      style={{ height: KEY_HEIGHT }}
+      className="w-full rounded-[18px] flex flex-col items-center justify-center bg-slate-900/70 border border-slate-700/60 text-white transition-all duration-100 active:scale-95 active:bg-emerald-400/15 active:border-emerald-400/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-60 cursor-pointer select-none"
+    >
+      <span className="text-[28px] sm:text-[30px] font-semibold leading-none tabular-nums">{num}</span>
+      <span className="mt-1 h-[11px] text-[10px] sm:text-[11px] leading-none tracking-[0.2em] text-slate-400">
+        {KEY_LETTERS[num]}
+      </span>
+    </button>
+  );
+
   if (selectedCandidate) {
+    const expectedLength = getExpectedPin().length;
+
     return (
       <div
         id="welcome-identity-gateway"
         className="fixed inset-0 h-[100dvh] w-full bg-slate-900 bg-gradient-to-tr from-slate-950 via-teal-950 to-emerald-950 text-white z-[99999] flex flex-col overflow-hidden select-none"
         style={{
-          paddingTop: 'calc(max(env(safe-area-inset-top, 0px), var(--sat, 0px)) + 12px)',
-          paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), var(--sab, 0px)) + 16px)',
+          paddingTop: 'calc(max(env(safe-area-inset-top, 0px), var(--sat, 0px)) + 10px)',
+          paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), var(--sab, 0px)) + 12px)',
         }}
       >
-        <div className="w-full max-w-[430px] h-full mx-auto px-4 flex flex-col justify-between">
-          {/* BLOQUE 1 (ARRIBA): Logo/Título y puntos del PIN */}
-          <div className="w-full shrink-0 flex flex-col items-center">
-            <div className="w-full flex items-center justify-between mb-2">
-              <button
-                type="button"
-                onClick={() => setSelectedCandidate(null)}
-                className="text-slate-300 active:bg-white/15 flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-[12px] transition-colors duration-75 cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Volver</span>
-              </button>
-              <span className="text-xs font-black tracking-wider uppercase text-emerald-300/90 font-sans">
+        <style>{`
+          @keyframes fc-shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-6px); }
+            80% { transform: translateX(6px); }
+          }
+          .fc-shake { animation: fc-shake 300ms ease-in-out; }
+          @media (prefers-reduced-motion: reduce) {
+            .fc-shake { animation: none; }
+          }
+        `}</style>
+
+        {/* Tarjeta contenedora con borde */}
+        <div className="w-full max-w-[430px] flex-1 min-h-0 mx-auto px-3">
+          <div className="w-full h-full rounded-[28px] border border-slate-700/60 bg-slate-950/70 backdrop-blur px-4 pt-3 pb-2 flex flex-col overflow-hidden">
+
+            {/* BLOQUE 1 (ARRIBA): Título, avatar y puntos del PIN */}
+            <div className="w-full shrink-0 flex flex-col items-center">
+              <span className="text-xs font-black tracking-[0.2em] uppercase text-emerald-300/90 font-sans">
                 FamiChat
               </span>
-              <div className="w-[72px]" />
-            </div>
 
-            <div className="flex flex-col items-center text-center space-y-1.5 mt-1">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-md border border-white/10 ${selectedCandidate.avatarColor}`}>
-                {selectedCandidate.avatarEmoji}
-              </div>
-              <h3 className="font-extrabold text-white text-base sm:text-lg leading-tight">
-                {selectedCandidate.name}
-              </h3>
-              <p className="text-[10px] text-amber-400 font-semibold tracking-wider uppercase flex items-center gap-1 justify-center">
-                <Lock className="w-3 h-3" />
-                <span>Acceso Protegido de Administrador</span>
-              </p>
-            </div>
-
-            {/* Puntos del PIN */}
-            <div className="flex justify-center gap-4 mt-4 mb-1">
-              {[0, 1, 2, 3].map((idx) => (
+              <div className="flex flex-col items-center text-center mt-2">
                 <div
-                  key={idx}
-                  className={`w-4 h-4 rounded-full border-2 transition-colors duration-75 ${
-                    idx < pinCode.length
-                      ? 'bg-emerald-400 border-emerald-400 shadow-[0_0_10px_#34d399]'
-                      : 'border-slate-600 bg-transparent'
-                  }`}
-                />
-              ))}
+                  className={`flex items-center justify-center rounded-[20px] border border-emerald-400/40 shadow-md text-3xl sm:text-4xl ${selectedCandidate.avatarColor}`}
+                  style={{ width: 'clamp(48px, 7.5dvh, 68px)', height: 'clamp(48px, 7.5dvh, 68px)' }}
+                >
+                  {selectedCandidate.avatarEmoji}
+                </div>
+
+                <h3 className="mt-2 font-bold text-white text-[19px] sm:text-[22px] leading-tight">
+                  {selectedCandidate.name}
+                </h3>
+
+                <p className="mt-0.5 text-[10px] sm:text-[11px] text-amber-400 font-semibold tracking-[0.16em] uppercase flex items-center gap-1.5 justify-center">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Acceso Protegido de Administrador</span>
+                </p>
+
+                <p className="mt-1 text-xs sm:text-sm text-slate-300">Ingresa tu PIN</p>
+              </div>
+
+              {/* Puntos del PIN */}
+              <div className={`flex justify-center gap-4 sm:gap-5 mt-2.5 ${shake ? 'fc-shake' : ''}`}>
+                {Array.from({ length: expectedLength }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 transition-colors duration-100 ${
+                      idx < pinCode.length
+                        ? 'bg-emerald-400 border-emerald-400 shadow-[0_0_10px_#34d399]'
+                        : 'border-slate-600 bg-slate-800'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Mensajes (altura reservada para que el teclado no salte) */}
+              <div className="w-full min-h-[34px] mt-1.5 flex items-center justify-center" aria-live="polite">
+                {pinError && (
+                  <div className="flex items-center gap-1.5 text-xs text-rose-300 font-semibold bg-rose-950/60 border border-rose-800 rounded-[12px] px-3 py-1.5 justify-center text-center">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{pinError}</span>
+                  </div>
+                )}
+                {isSuccess && (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-bold bg-emerald-950/60 border border-emerald-800 rounded-[12px] px-3 py-1.5 justify-center text-center">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Llave Correcta. Iniciando...</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {pinError && (
-              <div className="flex items-center gap-1.5 text-xs text-rose-300 font-semibold bg-rose-950/60 border border-rose-800 rounded-[12px] px-3 py-1.5 mt-2 justify-center text-center">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>{pinError}</span>
-              </div>
-            )}
+            {/* BLOQUE 2 (MEDIO): Espacio flexible */}
+            <div className="flex-1 min-h-1" />
 
-            {isSuccess && (
-              <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-bold bg-emerald-950/60 border border-emerald-800 rounded-[12px] px-3 py-1.5 mt-2 justify-center text-center">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Llave Correcta. Iniciando...</span>
-              </div>
-            )}
-          </div>
+            {/* BLOQUE 3 (ABAJO): Teclado 3x4 */}
+            <div className="w-full shrink-0">
+              <div
+                className="grid w-full"
+                style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '9px' }}
+              >
+                {KEYPAD_NUMBERS.map(renderNumberKey)}
 
-          {/* BLOQUE 2 (MEDIO): Espacio flexible */}
-          <div className="flex-1 min-h-2" />
-
-          {/* BLOQUE 3 (ABAJO): Teclado tipo calculadora 3x4 pegado a la parte baja con margen */}
-          <div className="w-full shrink-0">
-            <div
-              className="grid w-full"
-              style={{
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '8px',
-              }}
-            >
-              {KEYPAD_NUMBERS.map((num) => (
+                {/* Fila 4: [vacío]  0  [borrar] */}
+                <div style={{ height: KEY_HEIGHT }} aria-hidden="true" />
+                {renderNumberKey('0')}
                 <button
-                  key={num}
                   type="button"
                   disabled={isSuccess}
-                  onClick={() => handleKeypadPress(num)}
-                  style={{ height: 'clamp(64px, 9dvh, 78px)' }}
-                  className="w-full bg-slate-800/95 active:bg-slate-600 text-white rounded-[12px] flex items-center justify-center transition-colors duration-75 cursor-pointer focus:outline-none border border-slate-700/80 select-none"
+                  onClick={handleBackspace}
+                  aria-label="Borrar"
+                  title="Borrar"
+                  style={{ height: KEY_HEIGHT }}
+                  className="w-full rounded-[18px] flex items-center justify-center bg-slate-900/40 border border-slate-700/40 text-slate-200 transition-all duration-100 active:scale-95 active:bg-emerald-400/15 active:border-emerald-400/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-60 cursor-pointer select-none"
                 >
-                  <span className="font-bold text-[28px] leading-none">{num}</span>
+                  <Delete className="w-7 h-7" />
                 </button>
-              ))}
+              </div>
 
-              {/* Fila 4: [vacío]  0  [borrar ⌫] */}
-              <div style={{ height: 'clamp(64px, 9dvh, 78px)' }} />
-
-              <button
-                type="button"
-                disabled={isSuccess}
-                onClick={() => handleKeypadPress('0')}
-                style={{ height: 'clamp(64px, 9dvh, 78px)' }}
-                className="w-full bg-slate-800/95 active:bg-slate-600 text-white rounded-[12px] flex items-center justify-center transition-colors duration-75 cursor-pointer focus:outline-none border border-slate-700/80 select-none"
-              >
-                <span className="font-bold text-[28px] leading-none">0</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isSuccess}
-                onClick={handleBackspace}
-                style={{ height: 'clamp(64px, 9dvh, 78px)' }}
-                className="w-full bg-slate-800/60 active:bg-slate-600 text-slate-200 rounded-[12px] flex items-center justify-center transition-colors duration-75 cursor-pointer focus:outline-none border border-slate-700/60 select-none"
-                title="Borrar"
-              >
-                <span className="font-bold text-[28px] leading-none">⌫</span>
-              </button>
+              {/* Línea divisoria y botón Volver como enlace de texto */}
+              <div className="mt-2 border-t border-slate-700/50">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCandidate(null)}
+                  className="w-full h-11 flex items-center justify-center gap-2 text-sm font-medium text-slate-300 active:text-white transition-colors duration-100 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded-[12px]"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Volver</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

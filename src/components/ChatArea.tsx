@@ -772,7 +772,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           let lastDateLabel = "";
           return searchFilteredMessages.map((msg) => {
             const isMe = msg.senderId === currentUser.id;
-            const isDarkWallpaper = chatWallpaper === 'midnight' || chatWallpaper === 'emerald';
+            const isDarkWallpaper = chatWallpaper === 'midnight' || chatWallpaper === 'emerald' || (chatWallpaper === 'classic' && Boolean(darkMode));
             
             // Custom Modern & Beautiful Theme Colors (Elegant slate, jade, and soft pastel mint)
             let bubbleBgClass = '';
@@ -1098,24 +1098,24 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* FOOTER INPUT CONTROLS */}
-      <div id="chat-input-toolbar-footer" className="bg-[#0b141a] p-3 pb-[calc(16px+env(safe-area-inset-bottom))] border-t border-neutral-800/50 flex flex-col gap-2 relative z-10 shrink-0">
+      <div id="chat-input-toolbar-footer" className="bg-[#f0f2f5] dark:bg-[#202c33] p-3 pb-[calc(16px+env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-[#222e35] flex flex-col gap-2 relative z-10 shrink-0 transition-colors">
         
         {/* Dynamic Reply Preview above input bar */}
         {replyMsg && (
-          <div className="bg-[#1f2c34] border-l-4 border-[#00a884] rounded-lg p-2.5 mb-1 flex items-center justify-between gap-3 animate-fade-in text-xs shadow-md select-none">
+          <div className="bg-white dark:bg-[#1f2c34] border-l-4 border-[#00a884] rounded-lg p-2.5 mb-1 flex items-center justify-between gap-3 animate-fade-in text-xs shadow-sm select-none">
             <div className="min-w-0 flex-1">
               <p className="font-extrabold text-[11px] text-[#00a884] mb-0.5 flex items-center gap-1.5">
                 <Reply className="w-3.5 h-3.5" />
                 <span>Respondiendo a {replyMsg.senderName === currentUser.name ? 'ti mismo' : replyMsg.senderName}</span>
               </p>
-              <p className="text-slate-300 truncate">
+              <p className="text-slate-600 dark:text-slate-300 truncate">
                 {replyMsg.messageType === 'image' ? '📷 Foto de familia' : replyMsg.messageType === 'audio' ? '🎤 Nota de voz familiar' : replyMsg.text}
               </p>
             </div>
             <button 
               type="button"
               onClick={() => setReplyMsg(null)}
-              className="bg-transparent text-slate-400 hover:text-white hover:bg-[#2a3942] rounded-full p-1 cursor-pointer transition-colors"
+              className="bg-transparent text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2a3942] rounded-full p-1 cursor-pointer transition-colors"
               title="Cancelar respuesta"
             >
               <X className="w-4 h-4" />
@@ -1125,17 +1125,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
         {/* Dynamic Voice Recording Console vs Text Form Box */}
         {isRecording ? (
-          <div id="voice-recording-console" className="flex items-center justify-between bg-[#2d1e21] border border-rose-900/50 rounded-xl p-2.5 gap-3 animate-pulse shadow-inner select-none ring-1 ring-rose-500/10">
+          <div id="voice-recording-console" className="flex items-center justify-between bg-rose-50 dark:bg-[#2d1e21] border border-rose-200 dark:border-rose-900/50 rounded-xl p-2.5 gap-3 animate-pulse shadow-inner select-none ring-1 ring-rose-500/10">
             <div className="flex items-center gap-2.5 pl-2 min-w-0">
               <span className="relative flex h-3 w-3 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-455 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600"></span>
               </span>
               <div className="flex flex-col min-w-0 leading-tight">
-                <span className="text-[11px] font-bold text-rose-300 truncate">Grabando audio con tu micrófono...</span>
-                <span className="text-[9.5px] text-rose-400">Mantente cerca para un sonido claro</span>
+                <span className="text-[11px] font-bold text-rose-700 dark:text-rose-300 truncate">Grabando audio con tu micrófono...</span>
+                <span className="text-[9.5px] text-rose-500 dark:text-rose-400">Mantente cerca para un sonido claro</span>
               </div>
-              <span className="font-mono bg-rose-950/50 text-rose-200 px-2 py-0.5 rounded text-[11px] font-extrabold border border-rose-800">
+              <span className="font-mono bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-200 px-2 py-0.5 rounded text-[11px] font-extrabold border border-rose-200 dark:border-rose-800">
                 {formatDuration(recordDuration)}
               </span>
             </div>
@@ -1145,7 +1145,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               <button 
                 type="button" 
                 onClick={cancelRecordingAudio}
-                className="bg-[#202c33] hover:bg-[#2a3942] text-slate-300 text-[11px] font-bold px-3 py-1.8 rounded-lg transition-all active:scale-95 cursor-pointer border border-neutral-700/50 shadow-sm"
+                className="bg-white dark:bg-[#202c33] hover:bg-slate-100 dark:hover:bg-[#2a3942] text-slate-700 dark:text-slate-300 text-[11px] font-bold px-3 py-1.8 rounded-lg transition-all active:scale-95 cursor-pointer border border-slate-200 dark:border-neutral-700/50 shadow-sm"
                 title="Descartar y borrar grabación"
               >
                 Cancelar
@@ -1163,15 +1163,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         ) : (
           /* Input box form container */
           <form onSubmit={handleSend} className="w-full max-w-full flex items-center gap-2 select-none">
-            {/* Charcoal Rounded Input Capsule */}
-            <div className="flex-1 flex items-center bg-[#202c33] rounded-full px-3 py-1 shadow-md border border-neutral-700/20 min-w-0">
+            {/* Rounded Input Capsule */}
+            <div className="flex-1 flex items-center bg-white dark:bg-[#2a3942] rounded-full px-3 py-1 shadow-xs border border-slate-200 dark:border-neutral-700/30 min-w-0 transition-colors">
               
               {/* Main Emoji Drawer Switch */}
               <button
                 id="chat-toggle-emojis-drawer-btn"
                 type="button"
                 onClick={() => setShowEmojiDrawer(!showEmojiDrawer)}
-                className={`p-2 rounded-full hover:bg-[#2a3942] transition-colors cursor-pointer shrink-0 text-slate-400 hover:text-white ${showEmojiDrawer ? 'text-[#00a884] bg-[#2a3942]' : ''}`}
+                className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#37474f] transition-colors cursor-pointer shrink-0 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white ${showEmojiDrawer ? 'text-[#00a884] bg-slate-100 dark:bg-[#37474f]' : ''}`}
                 title="Símbolos y Emojis"
               >
                 <Smile className="w-6 h-6 pointer-events-none" />
@@ -1189,7 +1189,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 autoCorrect="off"
                 autoCapitalize="sentences"
                 spellCheck={false}
-                className="flex-1 min-w-0 bg-transparent border-0 outline-none focus:ring-0 focus:outline-none py-2 px-2 text-[15px] text-white placeholder-[#8696a0] disabled:opacity-50"
+                className="flex-1 min-w-0 !bg-transparent !border-0 outline-none focus:ring-0 focus:outline-none py-2 px-2 text-[15px] text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-[#8696a0] disabled:opacity-50"
               />
 
               {/* Core paperclip attachment trigger */}
@@ -1197,7 +1197,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 id="chat-photos-gallery-roll-btn"
                 type="button"
                 onClick={handlePhotoUploadTrigger}
-                className="p-2 rounded-full hover:bg-[#2a3942] text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#37474f] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer shrink-0"
                 title="Adjuntar Imagen de la Galería del Celular"
               >
                 <Paperclip className="w-5.5 h-5.5" />
@@ -1208,32 +1208,32 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 id="chat-photos-camera-trigger-btn"
                 type="button"
                 onClick={handlePhotoUploadTrigger}
-                className="p-2 rounded-full hover:bg-[#2a3942] text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0 mr-1"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#37474f] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer shrink-0 mr-1"
                 title="Tomar foto o subir imagen"
               >
                 <Camera className="w-5.5 h-5.5" />
               </button>
             </div>
 
-            {/* Standalone Circular White Button on the Right */}
+            {/* Standalone Circular Send/Mic Button on the Right */}
             {inputText.trim() ? (
               <button
                 id="chat-submit-message-btn"
                 type="submit"
-                className="w-12 h-12 rounded-full bg-white hover:bg-neutral-100 flex items-center justify-center text-[#111b21] active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
+                className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-[#00a884] dark:hover:bg-[#008f6f] flex items-center justify-center text-white active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
                 title="Enviar Mensaje"
               >
-                <Send className="w-5.5 h-5.5 text-[#111b21] fill-current" />
+                <Send className="w-5.5 h-5.5 text-white fill-current" />
               </button>
             ) : (
               <button
                 id="chat-record-voice-note-btn"
                 type="button"
                 onClick={startRecordingAudio}
-                className="w-12 h-12 rounded-full bg-white hover:bg-neutral-100 flex items-center justify-center text-[#111b21] active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
+                className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-[#00a884] dark:hover:bg-[#008f6f] flex items-center justify-center text-white active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
                 title="Presiona para grabar nota de voz"
               >
-                <Mic className="w-5.5 h-5.5 text-[#111b21]" />
+                <Mic className="w-5.5 h-5.5 text-white" />
               </button>
             )}
           </form>
@@ -1241,15 +1241,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
         {/* EMOJI DRAWER POP-DOWN WINDOW */}
         {showEmojiDrawer && (
-          <div id="chat-emojis-drawer-popover" className="bg-[#1f2c34] border border-neutral-700/65 rounded-2xl shadow-2xl p-4 flex flex-col h-64 z-20 animate-fade-in mt-2 select-none">
-            <div className="flex justify-between items-center pb-2 border-b border-[#2a3942] mb-2.5">
-              <span className="text-[12px] font-bold text-[#e9edef] flex items-center gap-1.5">
+          <div id="chat-emojis-drawer-popover" className="bg-white dark:bg-[#1f2c34] border border-slate-200 dark:border-neutral-700/65 rounded-2xl shadow-2xl p-4 flex flex-col h-64 z-20 animate-fade-in mt-2 select-none">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-[#2a3942] mb-2.5">
+              <span className="text-[12px] font-bold text-slate-800 dark:text-[#e9edef] flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#00a884] fill-[#00a884]" /> Selector de Emoticones de WhatsApp
               </span>
               <button 
                 type="button" 
                 onClick={() => setShowEmojiDrawer(false)}
-                className="text-xs text-[#8696a0] hover:text-white font-semibold transition-colors duration-150 cursor-pointer"
+                className="text-xs text-slate-500 dark:text-[#8696a0] hover:text-slate-800 dark:hover:text-white font-semibold transition-colors duration-150 cursor-pointer"
               >
                 Cerrar
               </button>
@@ -1258,7 +1258,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
               {Object.entries(EMOJI_CATEGORIES).map(([category, list]) => (
                 <div key={category}>
-                  <h4 className="text-[11px] font-bold text-[#8696a0] uppercase tracking-wider mb-2 mt-1">
+                  <h4 className="text-[11px] font-bold text-slate-400 dark:text-[#8696a0] uppercase tracking-wider mb-2 mt-1">
                     {category}
                   </h4>
                   <div className="grid grid-cols-7 sm:grid-cols-9 gap-2.5">
@@ -1267,7 +1267,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         key={emo}
                         type="button"
                         onClick={() => insertEmoji(emo)}
-                        className="text-[34px] hover:bg-[#2a3942] hover:scale-110 active:scale-90 p-1.5 rounded-xl transition-all duration-150 cursor-pointer text-center select-none leading-none flex items-center justify-center font-sans"
+                        className="text-[34px] hover:bg-slate-100 dark:hover:bg-[#2a3942] hover:scale-110 active:scale-90 p-1.5 rounded-xl transition-all duration-150 cursor-pointer text-center select-none leading-none flex items-center justify-center font-sans"
                       >
                         {emo}
                       </button>

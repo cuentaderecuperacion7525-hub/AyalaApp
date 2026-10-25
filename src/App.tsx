@@ -189,10 +189,7 @@ export default function App() {
   const [latestRelease, setLatestRelease] = useState<ReleaseInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
-  const [updateCheckFeedback, setUpdateCheckFeedback] = useState<{
-    type: 'uptodate' | 'available' | 'error';
-    message: string;
-  } | null>(null);
+  const [updateCheckFeedback, setUpdateCheckFeedback] = useState<string | null>(null);
   const [autoCheckUpdates, setAutoCheckUpdates] = useState<boolean>(() => {
     return localStorage.getItem('famichat_auto_check_updates') !== 'false';
   });
@@ -331,24 +328,18 @@ export default function App() {
       if (result.hasUpdate && result.release) {
         setHasUpdate(true);
         setLatestRelease(result.release);
-        setUpdateCheckFeedback({
-          type: 'available',
-          message: `Hay una nueva: v${result.release.version}`,
-        });
+        const verLabel = result.release.version.startsWith('v')
+          ? result.release.version
+          : `v${result.release.version}`;
+        setUpdateCheckFeedback(`Hay una nueva: ${verLabel}`);
         window.history.pushState({ view: 'update_modal' }, '');
         setShowUpdateModal(true);
       } else {
         setHasUpdate(false);
-        setUpdateCheckFeedback({
-          type: 'uptodate',
-          message: `Estás al día (versión ${currentVer})`,
-        });
+        setUpdateCheckFeedback(`Estás al día (versión ${currentVer})`);
       }
     } else {
-      setUpdateCheckFeedback({
-        type: 'error',
-        message: result.errorMessage || 'Sin internet',
-      });
+      setUpdateCheckFeedback(result.errorMessage || 'Sin internet');
     }
   };
 

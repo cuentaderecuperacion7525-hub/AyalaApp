@@ -1,0 +1,719 @@
+================================================================================
+ARCHIVO 1: src/components/WelcomeGateway.tsx
+================================================================================
+import React, { useState } from 'react';
+import { Contact } from '../types';
+import { ShieldCheck, Lock, Check, HelpCircle, ArrowLeft, KeyRound, AlertCircle } from 'lucide-react';
+
+interface WelcomeGatewayProps {
+  contacts: Contact[];
+  onSelectUser: (user: Contact) => void;
+}
+
+export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSelectUser }) => {
+  const [selectedCandidate, setSelectedCandidate] = useState<Contact | null>(null);
+  const [pinCode, setPinCode] = useState<string>('');
+  const [pinError, setPinError] = useState<string>('');
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+
+  const getExpectedPin = () => {
+    return localStorage.getItem('famichat_admin_pin') || '1122';
+  };
+
+  const handleSelect = (user: Contact) => {
+    if (user.role === 'admin') {
+      setSelectedCandidate(user);
+      setPinCode('');
+      setPinError('');
+      setIsSuccess(false);
+    } else {
+      // Normal family members enter directly with absolute privacy active
+      onSelectUser(user);
+    }
+  };
+
+  const handleKeypadPress = (num: string) => {
+    setPinError('');
+    if (pinCode.length >= 4) return;
+    const nextPin = pinCode + num;
+    setPinCode(nextPin);
+
+    const expected = getExpectedPin();
+    if (nextPin === expected) {
+      setIsSuccess(true);
+      setTimeout(() => {
+        if (selectedCandidate) {
+          onSelectUser(selectedCandidate);
+        }
+      }, 700);
+    } else if (nextPin.length === expected.length) {
+      setTimeout(() => {
+        setPinError('Clave de administrador incorrecta. Acceso denegado.');
+        setPinCode('');
+      }, 150);
+    }
+  };
+
+  const handleBackspace = () => {
+    setPinCode(prev => prev.slice(0, -1));
+    setPinError('');
+  };
+
+  const KEYPAD_NUMBERS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+  if (selectedCandidate) {
+    return (
+      <div
+        id="welcome-identity-gateway"
+        className="fixed inset-0 h-[100dvh] w-full bg-slate-900 bg-gradient-to-tr from-slate-950 via-teal-950 to-emerald-950 text-white z-[99999] flex flex-col overflow-hidden select-none"
+        style={{
+          paddingTop: 'calc(max(env(safe-area-inset-top, 0px), var(--sat, 0px)) + 12px)',
+          paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), var(--sab, 0px)) + 16px)',
+        }}
+      >
+        <div className="w-full max-w-[430px] h-full mx-auto px-4 flex flex-col justify-between">
+          {/* BLOQUE 1 (ARRIBA): Logo/Título y puntos del PIN */}
+          <div className="w-full shrink-0 flex flex-col items-center">
+            <div className="w-full flex items-center justify-between mb-2">
+              <button
+                type="button"
+                onClick={() => setSelectedCandidate(null)}
+                className="text-slate-300 active:bg-white/15 flex items-center gap-1.5 text-xs font-bold bg-white/10 px-3 py-1.5 rounded-[12px] transition-colors duration-75 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Volver</span>
+              </button>
+              <span className="text-xs font-black tracking-wider uppercase text-emerald-300/90 font-sans">
+                FamiChat
+              </span>
+              <div className="w-[72px]" />
+            </div>
+
+            <div className="flex flex-col items-center text-center space-y-1.5 mt-1">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-md border border-white/10 ${selectedCandidate.avatarColor}`}>
+                {selectedCandidate.avatarEmoji}
+              </div>
+              <h3 className="font-extrabold text-white text-base sm:text-lg leading-tight">
+                {selectedCandidate.name}
+              </h3>
+              <p className="text-[10px] text-amber-400 font-semibold tracking-wider uppercase flex items-center gap-1 justify-center">
+                <Lock className="w-3 h-3" />
+                <span>Acceso Protegido de Administrador</span>
+              </p>
+            </div>
+
+            {/* Puntos del PIN */}
+            <div className="flex justify-center gap-4 mt-4 mb-1">
+              {[0, 1, 2, 3].map((idx) => (
+                <div
+                  key={idx}
+                  className={`w-4 h-4 rounded-full border-2 transition-colors duration-75 ${
+                    idx < pinCode.length
+                      ? 'bg-emerald-400 border-emerald-400 shadow-[0_0_10px_#34d399]'
+                      : 'border-slate-600 bg-transparent'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {pinError && (
+              <div className="flex items-center gap-1.5 text-xs text-rose-300 font-semibold bg-rose-950/60 border border-rose-800 rounded-[12px] px-3 py-1.5 mt-2 justify-center text-center">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{pinError}</span>
+              </div>
+            )}
+
+            {isSuccess && (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-bold bg-emerald-950/60 border border-emerald-800 rounded-[12px] px-3 py-1.5 mt-2 justify-center text-center">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Llave Correcta. Iniciando...</span>
+              </div>
+            )}
+          </div>
+
+          {/* BLOQUE 2 (MEDIO): Espacio flexible */}
+          <div className="flex-1 min-h-2" />
+
+          {/* BLOQUE 3 (ABAJO): Teclado tipo calculadora 3x4 pegado a la parte baja con margen */}
+          <div className="w-full shrink-0">
+            <div
+              className="grid w-full"
+              style={{
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '8px',
+              }}
+            >
+              {KEYPAD_NUMBERS.map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  disabled={isSuccess}
+                  onClick={() => handleKeypadPress(num)}
+                  style={{ height: 'clamp(64px, 9dvh, 78px)' }}
+                  className="w-full bg-slate-800/95 active:bg-slate-600 text-white rounded-[12px] flex items-center justify-center transition-colors duration-75 cursor-pointer focus:outline-none border border-slate-700/80 select-none"
+                >
+                  <span className="font-bold text-[28px] leading-none">{num}</span>
+                </button>
+              ))}
+
+              {/* Fila 4: [vacío]  0  [borrar ⌫] */}
+              <div style={{ height: 'clamp(64px, 9dvh, 78px)' }} />
+
+              <button
+                type="button"
+                disabled={isSuccess}
+                onClick={() => handleKeypadPress('0')}
+                style={{ height: 'clamp(64px, 9dvh, 78px)' }}
+                className="w-full bg-slate-800/95 active:bg-slate-600 text-white rounded-[12px] flex items-center justify-center transition-colors duration-75 cursor-pointer focus:outline-none border border-slate-700/80 select-none"
+              >
+                <span className="font-bold text-[28px] leading-none">0</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isSuccess}
+                onClick={handleBackspace}
+                style={{ height: 'clamp(64px, 9dvh, 78px)' }}
+                className="w-full bg-slate-800/60 active:bg-slate-600 text-slate-200 rounded-[12px] flex items-center justify-center transition-colors duration-75 cursor-pointer focus:outline-none border border-slate-700/60 select-none"
+                title="Borrar"
+              >
+                <span className="font-bold text-[28px] leading-none">⌫</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      id="welcome-identity-gateway" 
+      className="fixed inset-0 h-[100dvh] w-full bg-slate-900 bg-gradient-to-tr from-slate-950 via-teal-950 to-emerald-950 text-white z-[99999] flex flex-col justify-between items-center overflow-y-auto px-4 pt-[calc(var(--sat,0px)+0.75rem)] md:pt-6 pb-[calc(var(--sab,0px)+0.5rem)] md:pb-6 select-none"
+    >
+      <div className="text-center shrink-0 animate-fade-in">
+        <div className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-3 py-0.5 rounded-full mb-1 text-[9.5px] font-bold tracking-[0.16em] text-emerald-300 uppercase">
+          🛡️ Red Familiar Privada
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-150 via-teal-100 to-emerald-300 font-sans leading-tight">
+          FamiChat
+        </h1>
+        <p className="text-[10.5px] text-teal-300/80 font-serif italic">by Martinez Alejandro</p>
+      </div>
+
+      <div className="w-full max-w-[340px] sm:max-w-sm mx-auto my-1.5 flex flex-col items-center shrink-0">
+        <div className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-4 sm:p-6 shadow-[0_24px_64px_rgba(0,0,0,0.5)] space-y-3.5 animate-scale-up">
+          <div className="text-center space-y-1">
+            <h2 className="text-base sm:text-lg font-extrabold text-white text-center">¿Quién está ingresando hoy?</h2>
+            <p className="text-[11px] text-white/60 leading-snug max-w-[250px] mx-auto text-center">
+              Selecciona tu perfil para cargar tus mensajes privados y notas familiares del teléfono.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            {contacts.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => handleSelect(c)}
+                className="group relative flex flex-col items-center p-3 bg-white/[0.03] hover:bg-white/[0.12] border border-white/5 hover:border-emerald-500/30 rounded-2xl transition-all cursor-pointer shadow-sm text-center active:scale-95 focus:outline-none"
+              >
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shadow-lg border border-white/10 group-hover:scale-105 duration-200 transition-all ${c.avatarColor}`}>
+                  {c.avatarEmoji}
+                </div>
+                <span className="font-extrabold text-[11.5px] text-white/95 mt-2 block truncate max-w-full">
+                  {c.name}
+                </span>
+                <span className="text-[9px] text-teal-300/70 font-medium block truncate max-w-full italic">
+                  {c.relationship} {c.role === 'admin' && '★'}
+                </span>
+
+                {c.role === 'admin' && (
+                  <span className="absolute top-2 right-2 p-1 bg-amber-500/15 rounded text-[8px] font-black text-amber-300 border border-amber-500/25">
+                    PIN
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="text-center text-[9.5px] text-white/35 pb-0.5 font-medium select-none shrink-0">
+        Encriptación local activa • FamiChat Martínez r2.7
+      </div>
+    </div>
+  );
+};
+
+
+================================================================================
+ARCHIVO 2: src/config/version.ts
+================================================================================
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+
+export const GITHUB_OWNER = "cuentaderecuperacion7525-hub";
+export const GITHUB_REPO = "AyalaApp";
+
+const WEB_FALLBACK_VERSION = "1.0.0";
+
+export interface ReleaseInfo {
+  version: string;      // Siempre con prefijo "v", ej. "v1.0.15"
+  cleanVersion: string; // Sin prefijo "v", ej. "1.0.15"
+  body: string;
+  downloadUrl: string;
+  releaseUrl: string;
+}
+
+export async function getInstalledAppVersion(): Promise<string> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const info = await CapApp.getInfo();
+      if (info && info.version) {
+        return info.version.trim().replace(/^v/i, '');
+      }
+    }
+  } catch (e) {
+    console.warn('No se pudo leer App.getInfo(), usando versión de respaldo:', e);
+  }
+  return WEB_FALLBACK_VERSION;
+}
+
+export function compareVersions(remoteTag: string, currentVersion: string): number {
+  const sanitize = (v: string) => v.trim().replace(/^v/i, '');
+  const p1 = sanitize(remoteTag).split('.').map(n => parseInt(n, 10) || 0);
+  const p2 = sanitize(currentVersion).split('.').map(n => parseInt(n, 10) || 0);
+  const maxLen = Math.max(p1.length, p2.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    const num1 = p1[i] ?? 0;
+    const num2 = p2[i] ?? 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
+}
+
+export async function fetchLatestRelease(installedVersionOverride?: string): Promise<{
+  success: boolean;
+  hasUpdate: boolean;
+  installedVersion: string;
+  release?: ReleaseInfo;
+  errorMessage?: string;
+}> {
+  const installedVersion = installedVersionOverride || (await getInstalledAppVersion());
+
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return {
+      success: false,
+      hasUpdate: false,
+      installedVersion,
+      errorMessage: 'Sin internet'
+    };
+  }
+
+  try {
+    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+    const response = await CapacitorHttp.get({
+      url,
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'FamiChat-App'
+      }
+    });
+
+    if (response.status === 404) {
+      return {
+        success: false,
+        hasUpdate: false,
+        installedVersion,
+        errorMessage: 'No se encontró ninguna release'
+      };
+    }
+
+    if (response.status < 200 || response.status >= 300) {
+      return {
+        success: false,
+        hasUpdate: false,
+        installedVersion,
+        errorMessage: `Error al consultar GitHub (código ${response.status})`
+      };
+    }
+
+    const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+    const rawTag = (data?.tag_name || '').trim();
+
+    if (!rawTag) {
+      return {
+        success: false,
+        hasUpdate: false,
+        installedVersion,
+        errorMessage: 'No se encontró ninguna release'
+      };
+    }
+
+    const cleanTag = rawTag.replace(/^v/i, '');
+    const displayTag = `v${cleanTag}`;
+    const isNewer = compareVersions(cleanTag, installedVersion) > 0;
+
+    let apkDownloadUrl = '';
+    if (Array.isArray(data.assets)) {
+      const apkAsset = data.assets.find(
+        (asset: any) => typeof asset?.name === 'string' && asset.name.toLowerCase().endsWith('.apk')
+      );
+      if (apkAsset?.browser_download_url) {
+        apkDownloadUrl = apkAsset.browser_download_url;
+      }
+    }
+
+    const fallbackReleaseUrl = data.html_url || `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+
+    return {
+      success: true,
+      hasUpdate: isNewer,
+      installedVersion,
+      release: {
+        version: displayTag,
+        cleanVersion: cleanTag,
+        body: data.body || 'Nuevas mejoras y optimizaciones para la familia.',
+        downloadUrl: apkDownloadUrl || fallbackReleaseUrl,
+        releaseUrl: fallbackReleaseUrl
+      }
+    };
+  } catch (err) {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    return {
+      success: false,
+      hasUpdate: false,
+      installedVersion,
+      errorMessage: isOffline ? 'Sin internet' : 'No se pudo comprobar. Revisa tu conexión.'
+    };
+  }
+}
+
+
+================================================================================
+ARCHIVO 3: src/components/UpdateModal.tsx
+================================================================================
+import React from 'react';
+import { ReleaseInfo } from '../config/version';
+import { DownloadCloud, X, ArrowDownCircle } from 'lucide-react';
+
+interface UpdateModalProps {
+  isOpen: boolean;
+  release: ReleaseInfo | null;
+  onClose: () => void;
+  onUpdateNow: () => void;
+}
+
+export const UpdateModal: React.FC<UpdateModalProps> = ({
+  isOpen,
+  release,
+  onClose,
+  onUpdateNow
+}) => {
+  if (!isOpen || !release) return null;
+
+  const formatBodyLines = (text: string) => {
+    if (!text) return ['Nuevas mejoras de rendimiento y estabilidad para la familia.'];
+    const lines = text
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+    return lines.slice(0, 5);
+  };
+
+  const bodyLines = formatBodyLines(release.body);
+
+  return (
+    <div 
+      id="update-modal-overlay"
+      className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[10000] flex items-center justify-center p-4 animate-fade-in select-none"
+    >
+      <div 
+        id="update-modal-card"
+        className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm overflow-hidden animate-scale-up"
+      >
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-white/15 rounded-lg">
+              <DownloadCloud className="w-5 h-5 text-emerald-100" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm tracking-wide">
+                Actualización disponible: {release.version.startsWith('v') ? release.version : `v${release.version}`}
+              </h3>
+              <p className="text-[10px] text-emerald-100/90 font-medium">Nueva versión de FamiChat</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="text-white/80 hover:text-white hover:bg-white/10 p-1.5 rounded-full transition-colors cursor-pointer"
+            title="Cerrar"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-3.5">
+          <div className="bg-emerald-50/60 dark:bg-slate-800/60 border border-emerald-100 dark:border-slate-700/60 rounded-xl p-3.5 space-y-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
+              Notas de la versión:
+            </span>
+            <div className="text-xs text-slate-650 dark:text-slate-300 space-y-1 leading-relaxed">
+              {bodyLines.map((line, idx) => (
+                <p key={idx} className="line-clamp-1 flex items-start gap-1.5">
+                  <span className="text-emerald-500 font-bold shrink-0">•</span>
+                  <span>{line.replace(/^[-*#]\s*/, '')}</span>
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5 bg-teal-50 dark:bg-teal-950/40 p-3 rounded-xl border border-teal-200/50 dark:border-teal-800/40">
+            <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-300">
+              <ArrowDownCircle className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <span>Toca Instalar al terminar de descargar.</span>
+            </div>
+            <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-snug pl-6">
+              Si Android dice que hay un conflicto, desinstala la versión anterior una sola vez e instala esta.
+            </p>
+          </div>
+
+          <div className="pt-2 flex gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer text-center"
+            >
+              Más tarde
+            </button>
+            <button
+              type="button"
+              onClick={onUpdateNow}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-700/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <DownloadCloud className="w-4 h-4 shrink-0" />
+              <span>Actualizar ahora</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+================================================================================
+ARCHIVO 4: src/components/MoreMenu.tsx (Sección de herramientas y actualizaciones)
+================================================================================
+// Props agregadas en MoreMenuProps:
+//   installedVersion: string;
+//   updateCheckFeedback?: string | null;
+//   hasUpdate: boolean;
+//   onCheckUpdates: () => void;
+//   autoCheckUpdates: boolean;
+//   onToggleAutoCheckUpdates: (val: boolean) => void;
+//   checkingUpdate?: boolean;
+
+{/* Opción manual: Buscar actualizaciones con icono de descarga */}
+<button
+  type="button"
+  onClick={onCheckUpdates}
+  disabled={checkingUpdate}
+  className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer disabled:opacity-60"
+>
+  <div className="flex items-center gap-1.5 min-w-0">
+    <DownloadCloud className={`w-4 h-4 shrink-0 ${checkingUpdate ? 'animate-bounce text-teal-600' : hasUpdate ? 'text-emerald-600' : 'text-teal-600'}`} />
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        <span>Buscar actualizaciones</span>
+        {hasUpdate && (
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+        )}
+      </div>
+      <span className="block text-[9px] text-slate-500 font-normal truncate">
+        {checkingUpdate
+          ? 'Comprobando en GitHub...'
+          : updateCheckFeedback
+          ? updateCheckFeedback
+          : `Versión instalada: v${installedVersion}`}
+      </span>
+    </div>
+  </div>
+  <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+</button>
+
+{/* Interruptor: Buscar actualizaciones automáticamente */}
+<div className="w-full flex items-center justify-between p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700">
+  <button
+    type="button"
+    onClick={() => onToggleAutoCheckUpdates(!autoCheckUpdates)}
+    className="flex items-center gap-1.5 flex-1 text-left cursor-pointer select-none"
+  >
+    <RefreshCw className="w-4 h-4 shrink-0 text-teal-600" />
+    <div>
+      <span>Buscar actualizaciones automáticamente</span>
+      <span className="block text-[8.5px] text-slate-400 font-normal">
+        Comprobar al abrir • v{installedVersion}
+      </span>
+    </div>
+  </button>
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      onToggleAutoCheckUpdates(!autoCheckUpdates);
+    }}
+    className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer shrink-0 ml-2 ${autoCheckUpdates ? 'bg-emerald-500' : 'bg-slate-300'}`}
+    title="Activar o desactivar búsqueda automática"
+  >
+    <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform ${autoCheckUpdates ? 'translate-x-3.5' : 'translate-x-0'}`} />
+  </button>
+</div>
+
+
+================================================================================
+ARCHIVO 5: src/App.tsx (Sección de versiones y actualizaciones)
+================================================================================
+  // App version and GitHub update states
+  const [installedVersion, setInstalledVersion] = useState<string>('1.0.0');
+  const [hasUpdate, setHasUpdate] = useState<boolean>(false);
+  const [latestRelease, setLatestRelease] = useState<ReleaseInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
+  const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
+  const [updateCheckFeedback, setUpdateCheckFeedback] = useState<{
+    type: 'uptodate' | 'available' | 'error';
+    message: string;
+  } | null>(null);
+  const [autoCheckUpdates, setAutoCheckUpdates] = useState<boolean>(() => {
+    return localStorage.getItem('famichat_auto_check_updates') !== 'false';
+  });
+
+  const mobileViewRef = useRef(mobileView);
+  useEffect(() => {
+    mobileViewRef.current = mobileView;
+  }, [mobileView]);
+
+  const activeUserRef = useRef(activeUser);
+  useEffect(() => {
+    activeUserRef.current = activeUser;
+  }, [activeUser]);
+
+  // Read real installed app version on startup
+  useEffect(() => {
+    getInstalledAppVersion().then(ver => {
+      setInstalledVersion(ver);
+    });
+  }, []);
+
+  const handleToggleAutoCheckUpdates = (val: boolean) => {
+    setAutoCheckUpdates(val);
+    localStorage.setItem('famichat_auto_check_updates', val ? 'true' : 'false');
+  };
+
+  // Check for updates once on startup in background with a 3-second delay after app loads,
+  // only if there is internet. If it fails, retry once after 10 seconds.
+  const hasStartedAutoUpdateCheckRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (loading || hasStartedAutoUpdateCheckRef.current) return;
+    hasStartedAutoUpdateCheckRef.current = true;
+
+    let isCancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const performCheck = async (isRetry: boolean) => {
+      const isAutoEnabled = localStorage.getItem('famichat_auto_check_updates') !== 'false';
+      if (!isAutoEnabled) return;
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        if (!isRetry) {
+          retryTimer = setTimeout(() => {
+            if (!isCancelled) performCheck(true);
+          }, 10000);
+        }
+        return;
+      }
+
+      const result = await fetchLatestRelease();
+      if (isCancelled) return;
+
+      if (result.installedVersion) {
+        setInstalledVersion(result.installedVersion);
+      }
+
+      if (!result.success) {
+        if (!isRetry) {
+          retryTimer = setTimeout(() => {
+            if (!isCancelled) performCheck(true);
+          }, 10000);
+        }
+        return;
+      }
+
+      if (result.hasUpdate && result.release) {
+        setHasUpdate(true);
+        setLatestRelease(result.release);
+
+        const lastShownVersion = localStorage.getItem('famichat_dismissed_update_version');
+
+        // Show dialog once per version ONLY if user is logged in and on the chat list (never inside a chat)
+        if (
+          activeUserRef.current &&
+          mobileViewRef.current === 'list' &&
+          lastShownVersion !== result.release.version
+        ) {
+          localStorage.setItem('famichat_dismissed_update_version', result.release.version);
+          window.history.pushState({ view: 'update_modal' }, '');
+          setShowUpdateModal(true);
+        }
+      }
+    };
+
+    const initialTimer = setTimeout(() => {
+      if (!isCancelled) performCheck(false);
+    }, 3000);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(initialTimer);
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [loading]);
+
+  const handleManualCheckUpdates = async () => {
+    setCheckingUpdate(true);
+    setUpdateCheckFeedback(null);
+
+    const result = await fetchLatestRelease();
+    setCheckingUpdate(false);
+
+    const currentVer = result.installedVersion || installedVersion;
+    if (result.installedVersion) {
+      setInstalledVersion(result.installedVersion);
+    }
+
+    if (result.success) {
+      if (result.hasUpdate && result.release) {
+        setHasUpdate(true);
+        setLatestRelease(result.release);
+        setUpdateCheckFeedback({
+          type: 'available',
+          message: `Hay una nueva: v${result.release.version}`,
+        });
+        window.history.pushState({ view: 'update_modal' }, '');
+        setShowUpdateModal(true);
+      } else {
+        setHasUpdate(false);
+        setUpdateCheckFeedback({
+          type: 'uptodate',
+          message: `Estás al día (versión ${currentVer})`,
+        });
+      }
+    } else {
+      setUpdateCheckFeedback({
+        type: 'error',
+        message: result.errorMessage || 'Sin internet',
+      });
+    }
+  };
