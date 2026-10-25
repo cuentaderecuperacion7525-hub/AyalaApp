@@ -15,6 +15,8 @@ interface MoreMenuProps {
   pushSupported: boolean;
   subscribingPush: boolean;
   onTogglePush: () => void;
+  installedVersion: string;
+  updateCheckFeedback?: string | null;
   hasUpdate: boolean;
   onCheckUpdates: () => void;
   autoCheckUpdates: boolean;
@@ -39,6 +41,8 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
   pushSupported,
   subscribingPush,
   onTogglePush,
+  installedVersion,
+  updateCheckFeedback,
   hasUpdate,
   onCheckUpdates,
   autoCheckUpdates,
@@ -245,29 +249,46 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               </button>
             )}
 
-            {/* Buscar actualización automática - Única opción de actualización */}
+            {/* Opción manual: Buscar actualizaciones con icono de descarga */}
+            <button
+              type="button"
+              onClick={onCheckUpdates}
+              disabled={checkingUpdate}
+              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer disabled:opacity-60"
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                <DownloadCloud className={`w-4 h-4 shrink-0 ${checkingUpdate ? 'animate-bounce text-teal-600' : hasUpdate ? 'text-emerald-600' : 'text-teal-600'}`} />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span>Buscar actualizaciones</span>
+                    {hasUpdate && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    )}
+                  </div>
+                  <span className="block text-[9px] text-slate-500 font-normal truncate">
+                    {checkingUpdate
+                      ? 'Comprobando en GitHub...'
+                      : updateCheckFeedback
+                      ? updateCheckFeedback
+                      : `Versión instalada: v${installedVersion}`}
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </button>
+
+            {/* Interruptor: Buscar actualizaciones automáticamente */}
             <div className="w-full flex items-center justify-between p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700">
               <button
                 type="button"
-                onClick={() => {
-                  if (hasUpdate && onCheckUpdates) {
-                    onCheckUpdates();
-                  } else {
-                    onToggleAutoCheckUpdates(!autoCheckUpdates);
-                  }
-                }}
+                onClick={() => onToggleAutoCheckUpdates(!autoCheckUpdates)}
                 className="flex items-center gap-1.5 flex-1 text-left cursor-pointer select-none"
               >
-                <RefreshCw className={`w-4 h-4 shrink-0 ${hasUpdate ? 'text-emerald-600' : 'text-teal-600'}`} />
+                <RefreshCw className="w-4 h-4 shrink-0 text-teal-600" />
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <span>Buscar actualización automática</span>
-                    {hasUpdate && (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    )}
-                  </div>
+                  <span>Buscar actualizaciones automáticamente</span>
                   <span className="block text-[8.5px] text-slate-400 font-normal">
-                    {hasUpdate ? '¡Actualización lista! Toca para ver' : 'Revisar al abrir la app'}
+                    Comprobar al abrir • v{installedVersion}
                   </span>
                 </div>
               </button>
@@ -338,7 +359,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
             <span className="block border-t border-slate-100/65 my-1" />
 
             <p className="text-[9px] text-slate-400 text-center select-none pt-0.5">
-              Ref: Martinez Alejandro • v2.6.2 Encriptado
+              Ref: Martinez Alejandro • v{installedVersion} Encriptado
             </p>
           </div>
         </div>
@@ -382,12 +403,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
 
                 <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-150">
                   <p className="font-bold text-slate-750 mb-0.5">📞 ¿Cómo cambio de usuario si no soy Administrador?</p>
-                  <p className="text-[11px]">Abre el menú de 3 puntos, presiona <strong>Desbloquear Switcher</strong> y escribe el PIN numérico de administrador para desbloquear los perfiles temporalmente.</p>
-                </div>
-
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-150">
-                  <p className="font-bold text-slate-750 mb-0.5">🔋 ¿Cómo instalar FamiChat como App real?</p>
-                  <p className="text-[11px]">Presiona "Instalar App" para ver la guía. En iPhone usa "Compartir &gt; Añadir a pantalla de inicio". En Android, acepta el banner automático para verlo en tu escritorio físico.</p>
+                  <p className="text-[11px]">Abre el menú de 3 puntos, presiona <strong>Switcher de Perfil</strong> y escribe el PIN numérico de administrador para volver a la selección de usuario.</p>
                 </div>
               </div>
 

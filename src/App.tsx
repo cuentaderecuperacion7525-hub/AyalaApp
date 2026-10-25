@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Contact, Message, LocalNotification } from './types';
 import { INITIAL_CONTACTS } from './data/initialData';
 import { UserSwitcher } from './components/UserSwitcher';
@@ -6,18 +6,14 @@ import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
 import { NotificationsContainer } from './components/NotificationsContainer';
 import { FamiChatLogo } from './components/FamiChatLogo';
-import { PwaInstallModal } from './components/PwaInstallModal';
 import { PinModal } from './components/PinModal';
 import { MoreMenu } from './components/MoreMenu';
 import { WelcomeGateway } from './components/WelcomeGateway';
 import { CreditsModal } from './components/CreditsModal';
 import { SplashScreen } from './components/SplashScreen';
 import { UpdateModal } from './components/UpdateModal';
-import { APP_VERSION, fetchLatestRelease, ReleaseInfo } from './config/version';
+import { getInstalledAppVersion, fetchLatestRelease, ReleaseInfo } from './config/version';
 import { playSendSound, playNotificationSound } from './utils/audio';
-import { 
-  Volume2, VolumeX, MessageSquare, AlertCircle, RefreshCw, Radio, Smartphone
-} from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 
@@ -81,7 +77,6 @@ export default function App() {
       setShowMoreMenu(false);
       setShowFaqGuide(false);
       setShowCreditsModal(false);
-      setShowPwaModal(false);
       setShowIdentityPinModal(false);
       setShowUpdateModal(false);
     }
@@ -97,7 +92,6 @@ export default function App() {
         setShowMoreMenu(false);
         setShowFaqGuide(false);
         setShowCreditsModal(false);
-        setShowPwaModal(false);
         setShowIdentityPinModal(false);
         setShowUpdateModal(false);
       } else {
@@ -105,7 +99,6 @@ export default function App() {
         setShowMoreMenu(view === 'menu');
         setShowFaqGuide(view === 'faq');
         setShowCreditsModal(view === 'credits');
-        setShowPwaModal(view === 'pwa_modal');
         setShowIdentityPinModal(view === 'pin_modal');
         setShowUpdateModal(view === 'update_modal');
         
@@ -181,10 +174,6 @@ export default function App() {
   }, [darkMode]);
   const [serverState, setServerState] = useState<'connected' | 'reconnecting'>('connected');
 
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isInstallable, setIsInstallable] = useState<boolean>(false);
-  const [showPwaModal, setShowPwaModal] = useState<boolean>(false);
-
   const [pushSupported, setPushSupported] = useState<boolean>(false);
   const [pushEnabled, setPushEnabled] = useState<boolean>(false);
   const [subscribingPush, setSubscribingPush] = useState<boolean>(false);
@@ -195,13 +184,35 @@ export default function App() {
   const [pinAction, setPinAction] = useState<'unlock_switcher' | 'back_to_selection' | null>(null);
 
   // App version and GitHub update states
+  const [installedVersion, setInstalledVersion] = useState<string>('1.0.0');
   const [hasUpdate, setHasUpdate] = useState<boolean>(false);
   const [latestRelease, setLatestRelease] = useState<ReleaseInfo | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
+  const [updateCheckFeedback, setUpdateCheckFeedback] = useState<{
+    type: 'uptodate' | 'available' | 'error';
+    message: string;
+  } | null>(null);
   const [autoCheckUpdates, setAutoCheckUpdates] = useState<boolean>(() => {
     return localStorage.getItem('famichat_auto_check_updates') !== 'false';
   });
+
+  const mobileViewRef = useRef(mobileView);
+  useEffect(() => {
+    mobileViewRef.current = mobileView;
+  }, [mobileView]);
+
+  const activeUserRef = useRef(activeUser);
+  useEffect(() => {
+    activeUserRef.current = activeUser;
+  }, [activeUser]);
+
+  // Read real installed app version on startup
+  useEffect(() => {
+    getInstalledAppVersion().then(ver => {
+      setInstalledVersion(ver);
+    });
+  }, []);
 
   const handleToggleAutoCheckUpdates = (val: boolean) => {
     setAutoCheckUpdates(val);
@@ -217,7 +228,6 @@ export default function App() {
           showMoreMenu || 
           showFaqGuide || 
           showCreditsModal || 
-          showPwaModal || 
           showIdentityPinModal || 
           showUpdateModal ||
           showChatInfo || 
@@ -234,100 +244,111 @@ export default function App() {
         backListener.then(l => l.remove());
       };
     }
-  }, [showMoreMenu, showFaqGuide, showCreditsModal, showPwaModal, showIdentityPinModal, showUpdateModal, showChatInfo, mobileView]);
+  }, [showMoreMenu, showFaqGuide, showCreditsModal, showIdentityPinModal, showUpdateModal, showChatInfo, mobileView]);
 
-  // Monitor browser's native PWA install availability
+  // Check for updates once on startup in background with a 3-second delay after app loads,
+  // only if there is internet. If it fails, retry once after 10 seconds.
+  const hasStartedAutoUpdateCheckRef = useRef<boolean>(false);
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setIsInstallable(true);
-    };
-    
-    // Also track when app is successfully installed
-    const handleAppInstalled = () => {
-      console.log('App successfully installed into system');
-      setIsInstallable(false);
-      setDeferredPrompt(null);
-    };
+    if (loading || hasStartedAutoUpdateCheckRef.current) return;
+    hasStartedAutoUpdateCheckRef.current = true;
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  // Check for updates once on startup in background without blocking load
-  useEffect(() => {
     let isCancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const runAutoCheck = async () => {
+    const performCheck = async (isRetry: boolean) => {
       const isAutoEnabled = localStorage.getItem('famichat_auto_check_updates') !== 'false';
       if (!isAutoEnabled) return;
 
-      // Never check while user is inside a chat
-      if (mobileView === 'chat') return;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        if (!isRetry) {
+          retryTimer = setTimeout(() => {
+            if (!isCancelled) performCheck(true);
+          }, 10000);
+        }
+        return;
+      }
 
       const result = await fetchLatestRelease();
       if (isCancelled) return;
 
-      if (result.success && result.hasUpdate && result.release) {
+      if (result.installedVersion) {
+        setInstalledVersion(result.installedVersion);
+      }
+
+      if (!result.success) {
+        if (!isRetry) {
+          retryTimer = setTimeout(() => {
+            if (!isCancelled) performCheck(true);
+          }, 10000);
+        }
+        return;
+      }
+
+      if (result.hasUpdate && result.release) {
         setHasUpdate(true);
         setLatestRelease(result.release);
 
-        const lastDismissedVersion = localStorage.getItem('famichat_dismissed_update_version');
-        
-        // Show automatically only if on list view and not already dismissed for this version
-        if (lastDismissedVersion !== result.release.version && mobileView === 'list') {
+        const lastShownVersion = localStorage.getItem('famichat_dismissed_update_version');
+
+        // Show dialog once per version ONLY if user is logged in and on the chat list (never inside a chat)
+        if (
+          activeUserRef.current &&
+          mobileViewRef.current === 'list' &&
+          lastShownVersion !== result.release.version
+        ) {
+          localStorage.setItem('famichat_dismissed_update_version', result.release.version);
           window.history.pushState({ view: 'update_modal' }, '');
           setShowUpdateModal(true);
         }
       }
     };
 
-    const timer = setTimeout(runAutoCheck, 1200);
+    const initialTimer = setTimeout(() => {
+      if (!isCancelled) performCheck(false);
+    }, 3000);
+
     return () => {
       isCancelled = true;
-      clearTimeout(timer);
+      clearTimeout(initialTimer);
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, []);
+  }, [loading]);
 
   const handleManualCheckUpdates = async () => {
     setCheckingUpdate(true);
+    setUpdateCheckFeedback(null);
+
     const result = await fetchLatestRelease();
     setCheckingUpdate(false);
+
+    const currentVer = result.installedVersion || installedVersion;
+    if (result.installedVersion) {
+      setInstalledVersion(result.installedVersion);
+    }
 
     if (result.success) {
       if (result.hasUpdate && result.release) {
         setHasUpdate(true);
         setLatestRelease(result.release);
+        setUpdateCheckFeedback({
+          type: 'available',
+          message: `Hay una nueva: v${result.release.version}`,
+        });
         window.history.pushState({ view: 'update_modal' }, '');
         setShowUpdateModal(true);
       } else {
         setHasUpdate(false);
-        const toast: LocalNotification = {
-          id: 'update-uptodate-' + Date.now(),
-          title: 'FamiChat al día ✅',
-          body: 'Estás al día',
-          avatarEmoji: '✅',
-          avatarColor: 'bg-emerald-600',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        setNotifications(prev => [toast, ...prev.slice(0, 2)]);
+        setUpdateCheckFeedback({
+          type: 'uptodate',
+          message: `Estás al día (versión ${currentVer})`,
+        });
       }
     } else {
-      const toast: LocalNotification = {
-        id: 'update-error-' + Date.now(),
-        title: 'Actualizaciones ⚠️',
-        body: result.errorMessage || 'No se pudo comprobar. Revisa tu conexión.',
-        avatarEmoji: '⚠️',
-        avatarColor: 'bg-amber-600',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setNotifications(prev => [toast, ...prev.slice(0, 2)]);
+      setUpdateCheckFeedback({
+        type: 'error',
+        message: result.errorMessage || 'Sin internet',
+      });
     }
   };
 
@@ -574,19 +595,6 @@ export default function App() {
       console.warn("Unsubscribe push notice:", e);
     } finally {
       setSubscribingPush(false);
-    }
-  };
-
-  const handleTriggerInstall = () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User completed installation prompt successfully');
-        }
-        setDeferredPrompt(null);
-        setIsInstallable(false);
-      });
     }
   };
 
@@ -1077,13 +1085,15 @@ export default function App() {
                 autoCheckUpdates={autoCheckUpdates}
                 onToggleAutoCheckUpdates={handleToggleAutoCheckUpdates}
                 checkingUpdate={checkingUpdate}
+                installedVersion={installedVersion}
+                updateCheckFeedback={updateCheckFeedback}
                 isOpen={showMoreMenu}
                 onOpenChange={(open) => {
                   if (open) {
                     window.history.pushState({ view: 'menu' }, '');
                     setShowMoreMenu(true);
                   } else {
-                    if (window.history.state?.view === 'menu' || window.history.state?.view === 'faq' || window.history.state?.view === 'credits' || window.history.state?.view === 'pwa_modal' || window.history.state?.view === 'pin_modal' || window.history.state?.view === 'update_modal') {
+                    if (window.history.state?.view === 'menu' || window.history.state?.view === 'faq' || window.history.state?.view === 'credits' || window.history.state?.view === 'pin_modal' || window.history.state?.view === 'update_modal') {
                       window.history.back();
                     } else {
                       setShowMoreMenu(false);
@@ -1140,8 +1150,6 @@ export default function App() {
                 onAddContact={handleAddNewContact}
                 onClearChat={handleClearChat}
                 messages={messages}
-                isInstallable={isInstallable}
-                onShowInstallGuide={() => setShowPwaModal(true)}
                 onStarMessage={handleToggleStarMessage}
                 typingRegistry={typingRegistry}
               />
@@ -1193,20 +1201,6 @@ export default function App() {
           onDismiss={handleDismissNotification}
         />
 
-        {/* PWA Install helper guide dialog */}
-        <PwaInstallModal
-          isOpen={showPwaModal}
-          onClose={() => {
-            if (window.history.state?.view === 'pwa_modal') {
-              window.history.back();
-            } else {
-              setShowPwaModal(false);
-            }
-          }}
-          isInstallable={isInstallable}
-          onTriggerInstall={handleTriggerInstall}
-        />
-        
         {/* Identity shift PIN check dialog */}
         <PinModal
           isOpen={showIdentityPinModal}

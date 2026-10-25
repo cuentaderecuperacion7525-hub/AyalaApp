@@ -46,7 +46,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             </div>
             <div>
               <h3 className="font-extrabold text-sm tracking-wide">
-                Actualización disponible: {release.version}
+                Actualización disponible: {release.version.startsWith('v') ? release.version : `v${release.version}`}
               </h3>
               <p className="text-[10px] text-emerald-100/90 font-medium">Nueva versión de FamiChat</p>
             </div>
@@ -61,7 +61,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
         </div>
 
         {/* Contenido con notas de versión y ayuda */}
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-3.5">
           <div className="bg-emerald-50/60 dark:bg-slate-800/60 border border-emerald-100 dark:border-slate-700/60 rounded-xl p-3.5 space-y-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
               Notas de la versión:
@@ -77,9 +77,14 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           </div>
 
           {/* Línea de ayuda obligatoria */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 p-2.5 rounded-xl border border-teal-200/50 dark:border-teal-800/40">
-            <ArrowDownCircle className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
-            <span>Toca Instalar al terminar de descargar.</span>
+          <div className="space-y-1.5 bg-teal-50 dark:bg-teal-950/40 p-3 rounded-xl border border-teal-200/50 dark:border-teal-800/40">
+            <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-300">
+              <ArrowDownCircle className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <span>Toca Instalar al terminar de descargar.</span>
+            </div>
+            <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-snug pl-6">
+              Si Android dice que hay un conflicto, desinstala la versión anterior una sola vez e instala esta.
+            </p>
           </div>
 
           {/* Botones de acción */}

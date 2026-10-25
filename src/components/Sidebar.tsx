@@ -13,8 +13,6 @@ interface SidebarProps {
   onAddContact: (newContact: Omit<Contact, 'role'>) => void;
   onClearChat: (id: string | 'family-group') => void;
   messages: Message[];
-  isInstallable?: boolean;
-  onShowInstallGuide?: () => void;
   onStarMessage?: (messageId: string) => void;
   typingRegistry?: Record<string, string>;
 }
@@ -27,8 +25,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onAddContact,
   onClearChat,
   messages,
-  isInstallable,
-  onShowInstallGuide,
   onStarMessage,
   typingRegistry,
 }) => {
@@ -46,24 +42,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     message: string;
     onConfirm: () => void;
   }>({ isOpen: false, message: '', onConfirm: () => {} });
-  
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [bannerDismissed, setBannerDismissed] = useState(() => {
-    return localStorage.getItem('famichat_install_banner_dismissed') === 'true';
-  });
-
-  React.useEffect(() => {
-    const isStandaloneMode = 
-      window.matchMedia('(display-mode: standalone)').matches || 
-      (navigator as any).standalone;
-    setIsStandalone(!!isStandaloneMode);
-  }, []);
-
-  const handleDismissBanner = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    localStorage.setItem('famichat_install_banner_dismissed', 'true');
-    setBannerDismissed(true);
-  };
   
   // Backing form states for Papá José Manuel Admin
   const [newMemberName, setNewMemberName] = useState('');
@@ -338,47 +316,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         ) : (
           <>
-            {/* PWA INSTALLATION LEGEND BANNER */}
-            {!isStandalone && !bannerDismissed && (
-              <div 
-                id="pwa-installation-legend-banner"
-                className="p-3.5 mx-3 my-3 bg-gradient-to-r from-teal-50 to-emerald-50 border border-emerald-200/60 rounded-xl flex flex-col gap-2.5 relative shadow-sm animate-fade-in text-slate-700 select-none shrink-0"
-              >
-                <button
-                  onClick={handleDismissBanner}
-                  className="absolute top-2 right-2 p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100/50 transition-colors cursor-pointer"
-                  title="Cerrar aviso"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-
-                <div className="flex gap-2.5 items-start pr-4">
-                  <div className="p-2 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm animate-pulse">
-                    <Smartphone className="w-4 h-4" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <h3 className="font-extrabold text-slate-800 text-[12px] leading-tight flex flex-wrap items-center gap-1">
-                      🎁 Instalar FamiChat App
-                      <span className="text-[9px] font-bold py-0.2 px-1 rounded bg-amber-100 text-amber-800 border border-amber-200 uppercase">Sin barra URL</span>
-                    </h3>
-                    <p className="text-slate-600 text-[11px] leading-relaxed">
-                      Para esconder la barra gris de direcciones, instala FamiChat en la pantalla de tu celular en un solo clic.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={onShowInstallGuide}
-                    className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-center text-[10.5px] transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1"
-                  >
-                    <span>¡Ver Guía e Instalar Aquí! ✨</span>
-                  </button>
-                </div>
-              </div>
-            )}
-            
             {/* GROUP CHAT OPTION - Always available if query allows */}
             {('familia unida').includes(searchQuery.toLowerCase()) && (() => {
               const groupWriters = typingRegistry ? Object.entries(typingRegistry)
