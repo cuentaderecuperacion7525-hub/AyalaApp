@@ -162,7 +162,7 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
                     key={idx}
                     className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 transition-colors duration-100 ${
                       idx < pinCode.length
-                        ? 'bg-emerald-400 border-emerald-400 shadow-[0_0_10px_#34d399]'
+                        ? 'bg-emerald-400 border-emerald-400 shadow-[0_0_10px_#9486fb]'
                         : 'border-slate-600 bg-slate-800'
                     }`}
                   />

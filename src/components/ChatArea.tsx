@@ -203,9 +203,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
 
   const WALLPAPERS = [
-    { id: 'classic', name: 'Clásico Beige', colorBg: 'bg-[#efeae2]', colorDot: 'bg-[#14b8a6]', border: 'border-emerald-250' },
-    { id: 'midnight', name: 'Noche Oscura', colorBg: 'bg-[#0b141a]', colorDot: 'bg-[#1f2c34]', border: 'border-slate-800' },
-    { id: 'emerald', name: 'Verde Pino', colorBg: 'bg-[#062f27]', colorDot: 'bg-[#00a884]', border: 'border-emerald-900' },
+    { id: 'classic', name: 'Crema Suave', colorBg: 'bg-[#f7f3ee]', colorDot: 'bg-[#8b7bff]', border: 'border-emerald-250' },
+    { id: 'midnight', name: 'Noche Oscura', colorBg: 'bg-[#0c0b1a]', colorDot: 'bg-[#1c1b2e]', border: 'border-slate-800' },
+    { id: 'emerald', name: 'Violeta Profundo', colorBg: 'bg-[#1f1747]', colorDot: 'bg-[#6552e8]', border: 'border-emerald-900' },
     { id: 'peach', name: 'Durazno Cálido', colorBg: 'bg-[#fdf6f0]', colorDot: 'bg-[#fb923c]', border: 'border-orange-150' },
     { id: 'lavender', name: 'Lavanda Dulce', colorBg: 'bg-[#f3f0f7]', colorDot: 'bg-[#a78bfa]', border: 'border-violet-150' }
   ];
@@ -214,14 +214,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     switch (chatWallpaper) {
       case 'midnight':
         return {
-          backgroundImage: `radial-gradient(#1f2c34 0.5px, transparent 0.5px), radial-gradient(#1f2c34 0.5px, #0b141a 0.5px)`,
+          backgroundImage: `radial-gradient(#1c1b2e 0.5px, transparent 0.5px), radial-gradient(#1c1b2e 0.5px, #0c0b1a 0.5px)`,
           backgroundSize: '24px 24px',
           backgroundPosition: '0 0, 12px 12px',
           opacity: 1
         };
       case 'emerald':
         return {
-          backgroundImage: `radial-gradient(#00a884 0.4px, transparent 0.4px), radial-gradient(#00a884 0.4px, #062f27 0.4px)`,
+          backgroundImage: `radial-gradient(#6552e8 0.4px, transparent 0.4px), radial-gradient(#6552e8 0.4px, #1f1747 0.4px)`,
           backgroundSize: '20px 20px',
           backgroundPosition: '0 0, 10px 10px',
           opacity: 0.96
@@ -244,8 +244,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       default:
         return {
           backgroundImage: darkMode
-            ? `radial-gradient(#1f2c34 0.4px, transparent 0.4px), radial-gradient(#1f2c34 0.4px, #0b141a 0.4px)`
-            : `radial-gradient(#14b8a6 0.4px, transparent 0.4px), radial-gradient(#14b8a6 0.4px, #efeae2 0.4px)`,
+            ? `radial-gradient(#1c1b2e 0.4px, transparent 0.4px), radial-gradient(#1c1b2e 0.4px, #0c0b1a 0.4px)`
+            : `radial-gradient(#8b7bff 0.4px, transparent 0.4px), radial-gradient(#8b7bff 0.4px, #f7f3ee 0.4px)`,
           backgroundSize: '20px 20px',
           backgroundPosition: '0 0, 10px 10px',
           opacity: darkMode ? 0.96 : 0.94
@@ -503,7 +503,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   return (
-    <div id="chat-active-pane" className="flex-1 bg-[#efeae2] flex flex-col h-full relative border-slate-200 min-h-0 overflow-hidden pb-[calc(env(safe-area-inset-bottom))]">
+    <div id="chat-active-pane" className="flex-1 bg-[#f7f3ee] flex flex-col h-full relative border-slate-200 min-h-0 overflow-hidden pb-[calc(env(safe-area-inset-bottom))]">
       
       {/* Hidden native input for actual camera / gallery roll selection */}
       <input
@@ -556,8 +556,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             </h2>
             <p className="text-[11px] text-slate-500 leading-none mt-1.5 flex items-center gap-1 min-h-[14px] overflow-hidden max-w-[180px] sm:max-w-[240px]">
               {activeTypingLabel ? (
-                <span className="text-[#00a884] font-bold animate-pulse flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#00a884] animate-bounce shrink-0" />
+                <span className="text-[#6552e8] font-bold animate-pulse flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#6552e8] animate-bounce shrink-0" />
                   {activeTypingLabel}
                 </span>
               ) : (
@@ -626,7 +626,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 setActiveSelectedMsgId(null);
                 setSelectedReactMessageId(null);
               }}
-              className="p-1.5 sm:p-2 text-[#00a884] hover:text-white hover:bg-[#00a884] border border-emerald-200 rounded-full transition-all flex items-center justify-center gap-1 cursor-pointer bg-white"
+              className="p-1.5 sm:p-2 text-[#6552e8] hover:text-white hover:bg-[#6552e8] border border-emerald-200 rounded-full transition-all flex items-center justify-center gap-1 cursor-pointer bg-white"
               title="Responder mensaje style WhatsApp"
             >
               <Reply className="w-4 h-4" />
@@ -783,25 +783,25 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
             if (isMe) {
               if (isDarkWallpaper) {
-                bubbleBgClass = 'bg-gradient-to-br from-[#0c6a58] to-[#075446]'; // Beautiful dark rich jade
+                bubbleBgClass = 'bg-gradient-to-br from-[#5a4bd8] to-[#4638b8]'; // Beautiful dark rich jade
                 textColorClass = 'text-emerald-50';
                 timeColorClass = 'text-emerald-300/70';
                 borderColorClass = 'border-emerald-600/30';
               } else {
-                bubbleBgClass = 'bg-gradient-to-br from-[#e4fcf5] to-[#d6f4ec]'; // Super clean modern premium soft mint
-                textColorClass = 'text-[#043329] font-[450]';
-                timeColorClass = 'text-[#043329]/50';
-                borderColorClass = 'border-[#b5ecd2]';
+                bubbleBgClass = 'bg-gradient-to-br from-[#ece9ff] to-[#e0dcff]'; // Super clean modern premium soft mint
+                textColorClass = 'text-[#1a1440] font-[450]';
+                timeColorClass = 'text-[#1a1440]/50';
+                borderColorClass = 'border-[#cfc8ff]';
               }
             } else {
               if (isDarkWallpaper) {
-                bubbleBgClass = 'bg-gradient-to-br from-[#1f2c34] to-[#1a252c]'; // Ultra sleek slate gray
+                bubbleBgClass = 'bg-gradient-to-br from-[#1c1b2e] to-[#201f34]'; // Ultra sleek slate gray
                 textColorClass = 'text-slate-100 font-[450]';
                 timeColorClass = 'text-slate-400/80';
                 borderColorClass = 'border-slate-800/10';
               } else {
-                bubbleBgClass = 'bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9]'; // Modern warm off-white/light gray hybrid
-                textColorClass = 'text-[#1e293b] font-[450]';
+                bubbleBgClass = 'bg-gradient-to-br from-[#ffffff] to-[#faf8f5]'; // Modern warm off-white/light gray hybrid
+                textColorClass = 'text-[#2a2740] font-[450]';
                 timeColorClass = 'text-slate-400/80';
                 borderColorClass = 'border-slate-200/50';
               }
@@ -906,10 +906,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         className={`mb-2 p-2 rounded border-l-4 text-left select-none text-xs cursor-pointer transition-all max-w-full overflow-hidden ${
                           isDarkWallpaper 
                             ? 'bg-black/25 hover:bg-black/35 border-emerald-500 text-slate-300' 
-                            : 'bg-black/5 hover:bg-black/10 border-[#00a884] text-slate-705'
+                            : 'bg-black/5 hover:bg-black/10 border-[#6552e8] text-slate-705'
                         }`}
                       >
-                        <p className="font-extrabold text-[10px] text-[#00a884] truncate mb-0.5">
+                        <p className="font-extrabold text-[10px] text-[#6552e8] truncate mb-0.5">
                           {msg.replyToSenderName === currentUser.name ? 'Tú' : msg.replyToSenderName}
                         </p>
                         <p className="opacity-90 truncate max-w-full leading-relaxed">
@@ -1099,13 +1099,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* FOOTER INPUT CONTROLS */}
-      <div id="chat-input-toolbar-footer" className="bg-[#f0f2f5] dark:bg-[#202c33] p-3 pb-[calc(16px+env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-[#222e35] flex flex-col gap-2 relative z-10 shrink-0 transition-colors">
+      <div id="chat-input-toolbar-footer" className="bg-[#f1eef6] dark:bg-[#1c1b2e] p-3 pb-[calc(16px+env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-[#2d2b45] flex flex-col gap-2 relative z-10 shrink-0 transition-colors">
         
         {/* Dynamic Reply Preview above input bar */}
         {replyMsg && (
-          <div className="bg-white dark:bg-[#1f2c34] border-l-4 border-[#00a884] rounded-lg p-2.5 mb-1 flex items-center justify-between gap-3 animate-fade-in text-xs shadow-sm select-none">
+          <div className="bg-white dark:bg-[#1c1b2e] border-l-4 border-[#6552e8] rounded-lg p-2.5 mb-1 flex items-center justify-between gap-3 animate-fade-in text-xs shadow-sm select-none">
             <div className="min-w-0 flex-1">
-              <p className="font-extrabold text-[11px] text-[#00a884] mb-0.5 flex items-center gap-1.5">
+              <p className="font-extrabold text-[11px] text-[#6552e8] mb-0.5 flex items-center gap-1.5">
                 <Reply className="w-3.5 h-3.5" />
                 <span>Respondiendo a {replyMsg.senderName === currentUser.name ? 'ti mismo' : replyMsg.senderName}</span>
               </p>
@@ -1116,7 +1116,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             <button 
               type="button"
               onClick={() => setReplyMsg(null)}
-              className="bg-transparent text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#2a3942] rounded-full p-1 cursor-pointer transition-colors"
+              className="bg-transparent text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#27263d] rounded-full p-1 cursor-pointer transition-colors"
               title="Cancelar respuesta"
             >
               <X className="w-4 h-4" />
@@ -1146,7 +1146,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               <button 
                 type="button" 
                 onClick={cancelRecordingAudio}
-                className="bg-white dark:bg-[#202c33] hover:bg-slate-100 dark:hover:bg-[#2a3942] text-slate-700 dark:text-slate-300 text-[11px] font-bold px-3 py-1.8 rounded-lg transition-all active:scale-95 cursor-pointer border border-slate-200 dark:border-neutral-700/50 shadow-sm"
+                className="bg-white dark:bg-[#1c1b2e] hover:bg-slate-100 dark:hover:bg-[#27263d] text-slate-700 dark:text-slate-300 text-[11px] font-bold px-3 py-1.8 rounded-lg transition-all active:scale-95 cursor-pointer border border-slate-200 dark:border-neutral-700/50 shadow-sm"
                 title="Descartar y borrar grabación"
               >
                 Cancelar
@@ -1165,14 +1165,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           /* Input box form container */
           <form onSubmit={handleSend} className="w-full max-w-full flex items-center gap-2 select-none">
             {/* Rounded Input Capsule */}
-            <div className="flex-1 flex items-center bg-white dark:bg-[#2a3942] rounded-full px-3 py-1 shadow-xs border border-slate-200 dark:border-neutral-700/30 min-w-0 transition-colors">
+            <div className="flex-1 flex items-center bg-white dark:bg-[#27263d] rounded-full px-3 py-1 shadow-xs border border-slate-200 dark:border-neutral-700/30 min-w-0 transition-colors">
               
               {/* Main Emoji Drawer Switch */}
               <button
                 id="chat-toggle-emojis-drawer-btn"
                 type="button"
                 onClick={() => setShowEmojiDrawer(!showEmojiDrawer)}
-                className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#37474f] transition-colors cursor-pointer shrink-0 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white ${showEmojiDrawer ? 'text-[#00a884] bg-slate-100 dark:bg-[#37474f]' : ''}`}
+                className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] transition-colors cursor-pointer shrink-0 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white ${showEmojiDrawer ? 'text-[#6552e8] bg-slate-100 dark:bg-[#34325a]' : ''}`}
                 title="Símbolos y Emojis"
               >
                 <Smile className="w-6 h-6 pointer-events-none" />
@@ -1190,7 +1190,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 autoCorrect="off"
                 autoCapitalize="sentences"
                 spellCheck={false}
-                className="flex-1 min-w-0 !bg-transparent !border-0 outline-none focus:ring-0 focus:outline-none py-2 px-2 text-[15px] text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-[#8696a0] disabled:opacity-50"
+                className="flex-1 min-w-0 !bg-transparent !border-0 outline-none focus:ring-0 focus:outline-none py-2 px-2 text-[15px] text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-[#9a98b8] disabled:opacity-50"
               />
 
               {/* Core paperclip attachment trigger */}
@@ -1198,7 +1198,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 id="chat-photos-gallery-roll-btn"
                 type="button"
                 onClick={handlePhotoUploadTrigger}
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#37474f] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer shrink-0"
                 title="Adjuntar Imagen de la Galería del Celular"
               >
                 <Paperclip className="w-5.5 h-5.5" />
@@ -1209,7 +1209,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 id="chat-photos-camera-trigger-btn"
                 type="button"
                 onClick={handlePhotoUploadTrigger}
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#37474f] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer shrink-0 mr-1"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer shrink-0 mr-1"
                 title="Tomar foto o subir imagen"
               >
                 <Camera className="w-5.5 h-5.5" />
@@ -1221,7 +1221,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               <button
                 id="chat-submit-message-btn"
                 type="submit"
-                className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-[#00a884] dark:hover:bg-[#008f6f] flex items-center justify-center text-white active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
+                className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-[#6552e8] dark:hover:bg-[#5442cc] flex items-center justify-center text-white active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
                 title="Enviar Mensaje"
               >
                 <Send className="w-5.5 h-5.5 text-white fill-current" />
@@ -1231,7 +1231,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 id="chat-record-voice-note-btn"
                 type="button"
                 onClick={startRecordingAudio}
-                className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-[#00a884] dark:hover:bg-[#008f6f] flex items-center justify-center text-white active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
+                className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-[#6552e8] dark:hover:bg-[#5442cc] flex items-center justify-center text-white active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
                 title="Presiona para grabar nota de voz"
               >
                 <Mic className="w-5.5 h-5.5 text-white" />
@@ -1242,15 +1242,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
         {/* EMOJI DRAWER POP-DOWN WINDOW */}
         {showEmojiDrawer && (
-          <div id="chat-emojis-drawer-popover" className="bg-white dark:bg-[#1f2c34] border border-slate-200 dark:border-neutral-700/65 rounded-2xl shadow-2xl p-4 flex flex-col h-64 z-20 animate-fade-in mt-2 select-none">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-[#2a3942] mb-2.5">
-              <span className="text-[12px] font-bold text-slate-800 dark:text-[#e9edef] flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#00a884] fill-[#00a884]" /> Selector de Emoticones de WhatsApp
+          <div id="chat-emojis-drawer-popover" className="bg-white dark:bg-[#1c1b2e] border border-slate-200 dark:border-neutral-700/65 rounded-2xl shadow-2xl p-4 flex flex-col h-64 z-20 animate-fade-in mt-2 select-none">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-[#27263d] mb-2.5">
+              <span className="text-[12px] font-bold text-slate-800 dark:text-[#ecebfa] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#6552e8] fill-[#6552e8]" /> Selector de Emoticones de WhatsApp
               </span>
               <button 
                 type="button" 
                 onClick={() => setShowEmojiDrawer(false)}
-                className="text-xs text-slate-500 dark:text-[#8696a0] hover:text-slate-800 dark:hover:text-white font-semibold transition-colors duration-150 cursor-pointer"
+                className="text-xs text-slate-500 dark:text-[#9a98b8] hover:text-slate-800 dark:hover:text-white font-semibold transition-colors duration-150 cursor-pointer"
               >
                 Cerrar
               </button>
@@ -1259,7 +1259,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
               {Object.entries(EMOJI_CATEGORIES).map(([category, list]) => (
                 <div key={category}>
-                  <h4 className="text-[11px] font-bold text-slate-400 dark:text-[#8696a0] uppercase tracking-wider mb-2 mt-1">
+                  <h4 className="text-[11px] font-bold text-slate-400 dark:text-[#9a98b8] uppercase tracking-wider mb-2 mt-1">
                     {category}
                   </h4>
                   <div className="grid grid-cols-7 sm:grid-cols-9 gap-2.5">
@@ -1268,7 +1268,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         key={emo}
                         type="button"
                         onClick={() => insertEmoji(emo)}
-                        className="text-[34px] hover:bg-slate-100 dark:hover:bg-[#2a3942] hover:scale-110 active:scale-90 p-1.5 rounded-xl transition-all duration-150 cursor-pointer text-center select-none leading-none flex items-center justify-center font-sans"
+                        className="text-[34px] hover:bg-slate-100 dark:hover:bg-[#27263d] hover:scale-110 active:scale-90 p-1.5 rounded-xl transition-all duration-150 cursor-pointer text-center select-none leading-none flex items-center justify-center font-sans"
                       >
                         {emo}
                       </button>
@@ -1283,12 +1283,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* DETAILS RIGHT SIDEBAR PANEL */}
       {showMemberInfo && (
-        <div id="chat-partner-info-sidebar" className="absolute top-[calc(var(--sat,0px)+3.75rem)] md:top-16 right-0 bottom-0 bg-white dark:bg-[#111b21] shadow-2xl border-l border-slate-200 dark:border-[#222d34] w-full sm:w-[310px] z-15 flex flex-col p-5 overflow-y-auto animate-slide-in-right">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#222d34] mb-4 select-none">
-            <h3 className="font-bold text-slate-800 dark:text-[#e9edef] text-sm tracking-wide">Detalles de la Red</h3>
+        <div id="chat-partner-info-sidebar" className="absolute top-[calc(var(--sat,0px)+3.75rem)] md:top-16 right-0 bottom-0 bg-white dark:bg-[#131225] shadow-2xl border-l border-slate-200 dark:border-[#2d2b45] w-full sm:w-[310px] z-15 flex flex-col p-5 overflow-y-auto animate-slide-in-right">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#2d2b45] mb-4 select-none">
+            <h3 className="font-bold text-slate-800 dark:text-[#ecebfa] text-sm tracking-wide">Detalles de la Red</h3>
             <button 
               onClick={onToggleMemberInfo}
-              className="text-slate-400 dark:text-[#8696a0] hover:text-slate-650 dark:hover:text-white font-bold text-xs bg-slate-100 dark:bg-[#202c33] hover:bg-slate-200 dark:hover:bg-[#2a3942] px-2 py-1.2 rounded cursor-pointer"
+              className="text-slate-400 dark:text-[#9a98b8] hover:text-slate-650 dark:hover:text-white font-bold text-xs bg-slate-100 dark:bg-[#1c1b2e] hover:bg-slate-200 dark:hover:bg-[#27263d] px-2 py-1.2 rounded cursor-pointer"
             >
               Cerrar
             </button>
@@ -1300,13 +1300,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 🏡
               </div>
             ) : (
-              <div className={`w-20 h-20 rounded-full ${activeContact?.avatarColor || 'bg-slate-500'} text-white flex items-center justify-center text-4xl shadow-md border-2 border-white dark:border-[#222d34]`}>
+              <div className={`w-20 h-20 rounded-full ${activeContact?.avatarColor || 'bg-slate-500'} text-white flex items-center justify-center text-4xl shadow-md border-2 border-white dark:border-[#2d2b45]`}>
                 {activeContact?.avatarEmoji || '👤'}
               </div>
             )}
 
             <div>
-              <h4 className="font-bold text-slate-800 dark:text-[#e9edef] text-base">{isGroup ? 'Familia Unida 🏡' : activeContact?.name}</h4>
+              <h4 className="font-bold text-slate-800 dark:text-[#ecebfa] text-base">{isGroup ? 'Familia Unida 🏡' : activeContact?.name}</h4>
               <p className="text-xs bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-0.8 rounded-full inline-block mt-1 uppercase tracking-wide border border-emerald-100 dark:border-emerald-800/60 text-[9.5px]">
                 {isGroup ? 'Historial Grupal' : activeContact?.relationship}
               </p>
@@ -1314,22 +1314,22 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
 
           <div className="mt-6 space-y-4 text-xs">
-            <div className="bg-slate-50 dark:bg-[#202c33] p-3 rounded-lg border border-slate-150 dark:border-[#222d34]">
-              <h5 className="font-bold text-slate-700 dark:text-[#8696a0] uppercase text-[9px] tracking-wider mb-1">Estado de Conexión Real</h5>
-              <p className="text-slate-655 dark:text-[#e9edef] font-medium leading-relaxed">
+            <div className="bg-slate-50 dark:bg-[#1c1b2e] p-3 rounded-lg border border-slate-150 dark:border-[#2d2b45]">
+              <h5 className="font-bold text-slate-700 dark:text-[#9a98b8] uppercase text-[9px] tracking-wider mb-1">Estado de Conexión Real</h5>
+              <p className="text-slate-655 dark:text-[#ecebfa] font-medium leading-relaxed">
                 {isGroup ? 'El canal grupal une a los integrantes registrados de la familia.' : (activeContact?.isOnline ? '🟢 En línea ahora' : `🕒 ${formatLastActive(activeContact)}`)}
               </p>
             </div>
 
             {!isGroup && (
-              <div className="bg-slate-50 dark:bg-[#202c33] p-3 rounded-lg border border-slate-150 dark:border-[#222d34] text-slate-700 dark:text-[#e9edef] space-y-2.5">
+              <div className="bg-slate-50 dark:bg-[#1c1b2e] p-3 rounded-lg border border-slate-150 dark:border-[#2d2b45] text-slate-700 dark:text-[#ecebfa] space-y-2.5">
                 <div>
-                  <h5 className="font-bold text-slate-700 dark:text-[#8696a0] uppercase text-[9px] tracking-wider mb-0.5">Teléfono Registrado</h5>
-                  <p className="text-slate-600 dark:text-[#d1d7db] font-mono text-[11px]">{activeContact?.phone || 'No registrado'}</p>
+                  <h5 className="font-bold text-slate-700 dark:text-[#9a98b8] uppercase text-[9px] tracking-wider mb-0.5">Teléfono Registrado</h5>
+                  <p className="text-slate-600 dark:text-[#cfcde8] font-mono text-[11px]">{activeContact?.phone || 'No registrado'}</p>
                 </div>
                 <div>
-                  <h5 className="font-bold text-slate-700 dark:text-[#8696a0] uppercase text-[9px] tracking-wider mb-0.5">Parentesco</h5>
-                  <p className="text-slate-600 dark:text-[#d1d7db] capitalize">{activeContact?.relationship || 'Familiar'}</p>
+                  <h5 className="font-bold text-slate-700 dark:text-[#9a98b8] uppercase text-[9px] tracking-wider mb-0.5">Parentesco</h5>
+                  <p className="text-slate-600 dark:text-[#cfcde8] capitalize">{activeContact?.relationship || 'Familiar'}</p>
                 </div>
               </div>
             )}

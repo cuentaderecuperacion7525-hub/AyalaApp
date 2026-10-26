@@ -661,6 +661,18 @@ async function startServer() {
     res.status(201).json({ success: true });
   });
 
+  app.get(['/FamiChat_Codigo_Completo.txt', '/codigo.txt', '/api/codigo.txt'], (req, res) => {
+    const filePath = path.join(process.cwd(), 'public', 'FamiChat_Codigo_Completo.txt');
+    if (fs.existsSync(filePath)) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      if (req.query.download === 'true' || req.query.download === '1') {
+        res.setHeader('Content-Disposition', 'attachment; filename="FamiChat_Codigo_Completo.txt"');
+      }
+      return res.sendFile(filePath);
+    }
+    res.status(404).send('Archivo de código no encontrado');
+  });
+
   app.post('/api/push-unsubscribe', (req, res) => {
     const { endpoint } = req.body;
     if (endpoint && db.pushSubscriptions) {

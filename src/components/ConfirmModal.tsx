@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Check, X } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -17,48 +17,34 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message,
   onConfirm,
   onCancel,
-  confirmText = 'Sí, Confirmo',
+  confirmText = 'Sí, confirmo',
   cancelText = 'Cancelar'
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div id="custom-confirm-modal-overlay" className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-      <div 
+    <div
+      id="custom-confirm-modal-overlay"
+      onClick={onCancel}
+      className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[9999] flex items-end sm:items-center justify-center p-3 pb-[calc(12px+env(safe-area-inset-bottom))] animate-fade-in"
+    >
+      <div
         id="custom-confirm-modal-content"
-        className="bg-white rounded-2xl shadow-2xl border border-slate-205 max-w-sm w-full overflow-hidden transform scale-100 transition-all animate-slide-in-down"
+        role="alertdialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-[28px] shadow-2xl border border-slate-200 max-w-sm w-full overflow-hidden animate-fade-in-up"
       >
-        {/* Header */}
-        <div className="bg-slate-900 text-white px-5 py-4 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
-            <ShieldAlert className="w-5 h-5 text-rose-450" />
+        <div className="px-6 pt-7 pb-2 flex flex-col items-center text-center">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mb-4">
+            <ShieldAlert className="w-7 h-7" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-extrabold text-[13px] tracking-wider uppercase text-slate-100 font-sans truncate">
-              {title}
-            </h3>
-          </div>
-          <button 
-            onClick={onCancel}
-            className="text-slate-400 hover:text-white hover:bg-slate-800 p-1 rounded-lg transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">{title}</h3>
+          <p className="text-slate-600 text-[15px] leading-relaxed mt-2">{message}</p>
         </div>
 
-        {/* Body */}
-        <div className="px-5 py-6">
-          <p className="text-slate-700 text-sm leading-relaxed font-medium">
-            {message}
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="bg-slate-50 border-t border-slate-100 px-5 py-4 flex items-center justify-end gap-2.5">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-xs font-semibold text-slate-650 hover:text-slate-900 bg-white border border-slate-250 hover:bg-slate-100 transition-all rounded-xl cursor-pointer"
-          >
+        <div className="px-6 pt-5 pb-6 flex flex-col-reverse sm:flex-row gap-2.5">
+          <button onClick={onCancel} className="btn btn-ghost flex-1">
             {cancelText}
           </button>
           <button
@@ -66,9 +52,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
               onConfirm();
               onCancel();
             }}
-            className="px-4 py-2 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 shadow-sm transition-all rounded-xl cursor-pointer flex items-center gap-1.5"
+            className="btn btn-danger-solid flex-1"
           >
-            <Check className="w-3.5 h-3.5 shrink-0" />
             {confirmText}
           </button>
         </div>

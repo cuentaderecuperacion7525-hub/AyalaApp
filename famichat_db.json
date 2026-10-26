@@ -7,9 +7,10 @@
       "avatarColor": "bg-teal-600",
       "relationship": "Papá (Admin)",
       "role": "admin",
-      "isOnline": false,
-      "lastActive": "Sin conexión registrada",
-      "phone": "+56 9 1234 5678"
+      "isOnline": true,
+      "lastActive": "En línea",
+      "phone": "+56 9 1234 5678",
+      "lastActiveTimestamp": 1792978568304
     },
     {
       "id": "mama-tila",

@@ -1296,19 +1296,19 @@ export default function App() {
         </div>
 
         {mobileView !== 'chat' && (
-          <header className="bg-emerald-700 text-white px-3 sm:px-4 pt-[calc(var(--sat,0px)+0.625rem)] md:pt-2.5 pb-2.5 flex items-center justify-between shadow-md z-20 select-none shrink-0 border-b border-emerald-600/35">
+          <header className="bg-gradient-to-r from-[#6552e8] to-[#513ed8] dark:from-[#1c1b2e] dark:to-[#171628] text-white px-3 sm:px-4 pt-[calc(var(--sat,0px)+0.625rem)] md:pt-2.5 pb-2.5 flex items-center justify-between shadow-md z-30 select-none shrink-0 border-b border-white/10 dark:border-[#2d2b45] transition-colors">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="bg-white/10 p-1.5 rounded-xl border border-white/10 shrink-0 flex items-center justify-center">
-                <FamiChatLogo className="w-4.5 h-4.5 text-teal-350" />
+              <div className="bg-white/15 p-1.5 rounded-xl border border-white/10 shrink-0 flex items-center justify-center">
+                <FamiChatLogo className="w-4.5 h-4.5 text-white" />
               </div>
               <div className="min-w-0">
                 <span className="font-extrabold text-[13px] sm:text-sm tracking-wide flex items-center gap-1 uppercase truncate font-sans">
                   FamiChat{' '}
-                  <span className="text-emerald-300 font-light text-[10px] italic font-serif normal-case">
+                  <span className="text-violet-200 dark:text-violet-300 font-light text-[10px] italic font-serif normal-case">
                     by Martinez Alejandro
                   </span>
                 </span>
-                <p className="text-[8.5px] text-emerald-100/90 truncate">Mensajería Familiar Privada</p>
+                <p className="text-[8.5px] text-violet-100/90 dark:text-slate-300 truncate">Mensajería Familiar Privada</p>
               </div>
             </div>
 

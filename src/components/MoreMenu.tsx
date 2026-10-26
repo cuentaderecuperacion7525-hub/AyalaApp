@@ -137,30 +137,30 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
       {isOpen && (
         <div 
           id="header-kebab-dropdown" 
-          className="absolute right-0 top-full mt-2 w-72 max-h-[calc(100dvh-var(--sat,0px)-85px)] md:max-h-[min(580px,calc(92vh-85px))] overflow-y-auto overscroll-contain custom-scrollbar bg-white rounded-2xl shadow-[0_12px_36px_-6px_rgba(0,0,0,0.22)] border border-slate-150 py-3 z-50 text-slate-800 animate-fade-in flex flex-col gap-2"
-          style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
+          className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-h-[calc(100dvh-var(--sat,0px)-70px)] md:max-h-[min(580px,calc(92vh-85px))] overflow-y-auto overscroll-contain custom-scrollbar bg-white dark:bg-[#1c1b2e] rounded-2xl shadow-[0_16px_40px_-6px_rgba(0,0,0,0.35)] border border-slate-200 dark:border-[#34325a] pt-3 pb-8 z-50 text-slate-800 dark:text-[#ecebfa] animate-fade-in flex flex-col gap-2"
+          style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overflowY: 'auto' }}
         >
           {/* Active Profile Info Header Card inside menu */}
-          <div className="px-4 pb-2.5 border-b border-slate-100">
+          <div className="px-4 pb-2.5 border-b border-slate-100 dark:border-[#2d2b45]">
             <div className="flex items-center gap-2.5">
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shadow-inner border border-black/5 ${currentUser.avatarColor}`}>
                 {currentUser.avatarEmoji}
               </div>
               <div className="min-w-0 flex-1">
-                <span className="font-bold text-xs uppercase tracking-wider text-slate-400 block">Mi Perfil Familiar</span>
-                <span className="font-extrabold text-[13.5px] text-slate-800 truncate block">{currentUser.name}</span>
-                <span className="text-[10px] text-slate-500 font-medium italic block">
+                <span className="font-bold text-xs uppercase tracking-wider text-slate-400 dark:text-[#9a98b8] block">Mi Perfil Familiar</span>
+                <span className="font-extrabold text-[13.5px] text-slate-800 dark:text-white truncate block">{currentUser.name}</span>
+                <span className="text-[10px] text-slate-500 dark:text-[#cfcde8] font-medium italic block">
                   {currentUser.relationship}
                 </span>
                 {currentUser.phone && (
-                  <span className="text-[9.5px] text-slate-400 block truncate mt-0.5">{currentUser.phone}</span>
+                  <span className="text-[9.5px] text-slate-400 dark:text-[#9a98b8] block truncate mt-0.5">{currentUser.phone}</span>
                 )}
               </div>
             </div>
 
             {/* Custom availability state switcher */}
-            <div className="mt-3 bg-slate-50 border border-slate-150 p-2 rounded-xl">
-              <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Mi Estado Actual:</span>
+            <div className="mt-3 bg-slate-50 dark:bg-[#131225] border border-slate-150 dark:border-[#2d2b45] p-2 rounded-xl">
+              <span className="text-[9.5px] font-bold text-slate-500 dark:text-[#9a98b8] uppercase tracking-widest block mb-1">Mi Estado Actual:</span>
               <div className="grid grid-cols-2 gap-1">
                 {statusOptions.map((opt) => (
                   <button
@@ -168,8 +168,8 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
                     onClick={() => handleStatusChange(opt.value)}
                     className={`px-1.5 py-1 text-center rounded text-[10px] sm:text-[10.5px] font-semibold transition-all border cursor-pointer ${
                       customStatus === opt.value
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm'
-                        : 'bg-white border-transparent text-slate-650 hover:bg-slate-100 hover:border-slate-200'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-600 text-emerald-800 dark:text-emerald-300 shadow-sm'
+                        : 'bg-white dark:bg-[#201f35] border-transparent dark:border-[#34325a] text-slate-650 dark:text-[#cfcde8] hover:bg-slate-100 dark:hover:bg-[#27263d]'
                     }`}
                   >
                     {opt.label}
@@ -180,26 +180,26 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
           </div>
 
           {/* Quick Hardware / Utilities Toggle Grid */}
-          <div className="px-4 py-1.5 border-b border-slate-100 space-y-1.5">
-            <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest block">Herramientas</span>
+          <div className="px-4 py-1.5 border-b border-slate-100 dark:border-[#2d2b45] space-y-1.5">
+            <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#9a98b8] uppercase tracking-widest block">Herramientas</span>
             
             {/* Sound Toggle row item */}
             <button
               onClick={() => {
                 setSoundOn(!soundOn);
               }}
-              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer"
+              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 dark:hover:bg-[#27263d] rounded-lg transition-colors text-xs font-semibold text-slate-700 dark:text-[#ecebfa] cursor-pointer"
             >
               <div className="flex items-center gap-1.5">
                 {soundOn ? (
                   <>
-                    <Volume2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <span>Tonos de Notificación</span>
                   </>
                 ) : (
                   <>
-                    <VolumeX className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="text-slate-500">Tonos Silenciados</span>
+                    <VolumeX className="w-4 h-4 text-slate-400 dark:text-[#9a98b8] shrink-0" />
+                    <span className="text-slate-500 dark:text-[#9a98b8]">Tonos Silenciados</span>
                   </>
                 )}
               </div>
@@ -213,12 +213,12 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               onClick={() => {
                 setDarkMode(!darkMode);
               }}
-              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer"
+              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 dark:hover:bg-[#27263d] rounded-lg transition-colors text-xs font-semibold text-slate-700 dark:text-[#ecebfa] cursor-pointer"
             >
               <div className="flex items-center gap-1.5">
                 {darkMode ? (
                   <>
-                    <Moon className="w-4 h-4 text-[#00a884] shrink-0" />
+                    <Moon className="w-4 h-4 text-[#6552e8] shrink-0" />
                     <span>Tema Oscuro Familiar</span>
                   </>
                 ) : (
@@ -238,13 +238,13 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               <button
                 onClick={onTogglePush}
                 disabled={subscribingPush}
-                className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer disabled:opacity-50"
+                className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 dark:hover:bg-[#27263d] rounded-lg transition-colors text-xs font-semibold text-slate-700 dark:text-[#ecebfa] cursor-pointer disabled:opacity-50"
               >
                 <div className="flex items-center gap-1.5">
-                  <Radio className={`w-4 h-4 shrink-0 ${pushEnabled ? 'text-amber-500 animate-pulse' : 'text-slate-400'}`} />
+                  <Radio className={`w-4 h-4 shrink-0 ${pushEnabled ? 'text-amber-500 animate-pulse' : 'text-slate-400 dark:text-[#9a98b8]'}`} />
                   <div>
                     <span>Alertas Push Móviles</span>
-                    <span className="block text-[8.5px] text-slate-400 font-normal">Recibe mensajes apagado</span>
+                    <span className="block text-[8.5px] text-slate-400 dark:text-[#9a98b8] font-normal">Recibe mensajes apagado</span>
                   </div>
                 </div>
                 <div className={`w-8 h-4 rounded-full relative flex items-center px-0.5 transition-colors cursor-pointer ${pushEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
@@ -258,16 +258,16 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               type="button"
               onClick={onCheckUpdates}
               disabled={checkingUpdate}
-              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer disabled:opacity-60"
+              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 dark:hover:bg-[#27263d] rounded-lg transition-colors text-xs font-semibold text-slate-700 dark:text-[#ecebfa] cursor-pointer disabled:opacity-60"
             >
               <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
                 <DownloadCloud
                   className={`w-4 h-4 shrink-0 ${
                     checkingUpdate
-                      ? 'animate-bounce text-teal-600'
+                      ? 'animate-bounce text-[#6552e8]'
                       : hasUpdate
-                      ? 'text-emerald-600'
-                      : 'text-teal-600'
+                      ? 'text-emerald-500'
+                      : 'text-[#6552e8]'
                   }`}
                 />
                 <div className="min-w-0 flex-1">
@@ -278,7 +278,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
                     )}
                   </div>
 
-                  <span className="block text-[8.5px] text-slate-400 font-normal truncate">
+                  <span className="block text-[8.5px] text-slate-400 dark:text-[#9a98b8] font-normal truncate">
                     {checkingUpdate ? (
                       'Comprobando en GitHub...'
                     ) : updateCheckFeedback ? (
@@ -296,7 +296,7 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
                 </div>
               </div>
 
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-[#9a98b8] shrink-0" />
             </button>
 
             {/* Interruptor: Buscar actualizaciones automáticamente */}
@@ -306,13 +306,13 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               aria-checked={autoCheckUpdates}
               onClick={() => onToggleAutoCheckUpdates(!autoCheckUpdates)}
               title="Activar o desactivar búsqueda automática"
-              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 rounded-lg transition-colors text-xs font-semibold text-slate-700 cursor-pointer select-none"
+              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 dark:hover:bg-[#27263d] rounded-lg transition-colors text-xs font-semibold text-slate-700 dark:text-[#ecebfa] cursor-pointer select-none"
             >
               <div className="flex items-center gap-1.5 min-w-0 flex-1 pr-2">
-                <RefreshCw className={`w-4 h-4 shrink-0 ${autoCheckUpdates ? 'text-teal-600' : 'text-slate-400'}`} />
+                <RefreshCw className={`w-4 h-4 shrink-0 ${autoCheckUpdates ? 'text-[#6552e8]' : 'text-slate-400 dark:text-[#9a98b8]'}`} />
                 <div className="min-w-0 flex-1">
                   <span className="block truncate">Buscar actualizaciones automáticamente</span>
-                  <span className="block text-[8.5px] text-slate-400 font-normal">
+                  <span className="block text-[8.5px] text-slate-400 dark:text-[#9a98b8] font-normal">
                     Comprobar al abrir • v{installedVersion}
                   </span>
                 </div>
@@ -325,23 +325,23 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
           </div>
 
           {/* Multiperfil & Switcher de Perfil */}
-          <div className="px-4 py-1.5 border-b border-slate-100 space-y-1.5">
-            <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest block">Acceso de Cuentas</span>
+          <div className="px-4 py-1.5 border-b border-slate-100 dark:border-[#2d2b45] space-y-1.5">
+            <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#9a98b8] uppercase tracking-widest block">Acceso de Cuentas</span>
             
             <button
               onClick={() => {
                 onBackToSelection();
               }}
-              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 border border-slate-150 bg-slate-50/50 rounded-xl transition-all text-xs font-semibold text-slate-700 cursor-pointer"
+              className="w-full flex items-center justify-between text-left p-1.5 hover:bg-slate-50 dark:hover:bg-[#27263d] border border-slate-150 dark:border-[#34325a] bg-slate-50/50 dark:bg-[#131225] rounded-xl transition-all text-xs font-semibold text-slate-700 dark:text-[#ecebfa] cursor-pointer"
             >
               <div className="flex items-center gap-1.5">
-                <User className="w-4 h-4 text-emerald-600 shrink-0" />
+                <User className="w-4 h-4 text-[#6552e8] shrink-0" />
                 <div>
                   <span>Switcher de Perfil</span>
-                  <span className="block text-[8.5px] text-slate-400 font-normal">Volver a selección de usuario</span>
+                  <span className="block text-[8.5px] text-slate-400 dark:text-[#9a98b8] font-normal">Volver a selección de usuario</span>
                 </div>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-[#9a98b8] shrink-0" />
             </button>
 
             {/* Application Maintenance Notice (Credits launcher button) */}
@@ -349,34 +349,34 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
               onClick={() => {
                 onOpenCredits();
               }}
-              className="w-full flex items-center justify-between gap-2 p-1.5 hover:bg-slate-50 border border-slate-150 bg-slate-50/50 rounded-xl transition-all cursor-pointer text-left text-xs font-semibold text-slate-700 mt-1"
+              className="w-full flex items-center justify-between gap-2 p-1.5 hover:bg-slate-50 dark:hover:bg-[#27263d] border border-slate-150 dark:border-[#34325a] bg-slate-50/50 dark:bg-[#131225] rounded-xl transition-all cursor-pointer text-left text-xs font-semibold text-slate-700 dark:text-[#ecebfa] mt-1"
             >
               <div className="flex items-center gap-1.5 min-w-0">
-                <Cpu className="w-4 h-4 text-teal-600 shrink-0" />
+                <Cpu className="w-4 h-4 text-[#6552e8] shrink-0" />
                 <div className="min-w-0">
-                  <span className="block text-xs font-bold text-slate-750">Créditos de App</span>
-                  <span className="block text-[8.5px] text-slate-400 font-normal truncate">Mantenimiento y creador</span>
+                  <span className="block text-xs font-bold text-slate-750 dark:text-white">Créditos de App</span>
+                  <span className="block text-[8.5px] text-slate-400 dark:text-[#9a98b8] font-normal truncate">Mantenimiento y creador</span>
                 </div>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-450 shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-450 dark:text-[#9a98b8] shrink-0" />
             </button>
           </div>
 
           {/* Informative Help Guide tab trigger */}
-          <div className="px-4 pt-1 space-y-1">
+          <div className="px-4 pt-1 pb-4 space-y-1">
             <button
               onClick={() => {
                 toggleFaq(true);
               }}
-              className="w-full flex items-center gap-1.5 text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-50 rounded-lg transition-colors text-xs font-medium cursor-pointer text-left"
+              className="w-full flex items-center gap-1.5 text-slate-500 dark:text-[#cfcde8] hover:text-slate-800 dark:hover:text-white p-1 hover:bg-slate-50 dark:hover:bg-[#27263d] rounded-lg transition-colors text-xs font-medium cursor-pointer text-left"
             >
-              <HelpCircle className="w-4 h-4 text-slate-400 shrink-0" />
+              <HelpCircle className="w-4 h-4 text-slate-400 dark:text-[#9a98b8] shrink-0" />
               <span>Manual de Ayuda de FamiChat</span>
             </button>
 
-            <span className="block border-t border-slate-100/65 my-1" />
+            <span className="block border-t border-slate-100/65 dark:border-[#2d2b45] my-1" />
 
-            <p className="text-[9px] text-slate-400 text-center select-none pt-0.5">
+            <p className="text-[9px] text-slate-400 dark:text-[#8885a8] text-center select-none pt-0.5">
               Ref: Martinez Alejandro • v{installedVersion} Encriptado
             </p>
           </div>

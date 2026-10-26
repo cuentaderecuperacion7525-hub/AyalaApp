@@ -20,8 +20,11 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // server.ts
+var server_exports = {};
+module.exports = __toCommonJS(server_exports);
 var import_express = __toESM(require("express"), 1);
 var import_vite = require("vite");
 var import_path = __toESM(require("path"), 1);
@@ -492,6 +495,17 @@ async function startServer() {
     }
     saveDB();
     res.status(201).json({ success: true });
+  });
+  app.get(["/FamiChat_Codigo_Completo.txt", "/codigo.txt", "/api/codigo.txt"], (req, res) => {
+    const filePath = import_path.default.join(process.cwd(), "public", "FamiChat_Codigo_Completo.txt");
+    if (import_fs.default.existsSync(filePath)) {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      if (req.query.download === "true" || req.query.download === "1") {
+        res.setHeader("Content-Disposition", 'attachment; filename="FamiChat_Codigo_Completo.txt"');
+      }
+      return res.sendFile(filePath);
+    }
+    res.status(404).send("Archivo de c\xF3digo no encontrado");
   });
   app.post("/api/push-unsubscribe", (req, res) => {
     const { endpoint } = req.body;

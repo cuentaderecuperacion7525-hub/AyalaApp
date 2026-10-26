@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Capacitor} from '@capacitor/core';
 import App from './App.tsx';
+import '@fontsource-variable/plus-jakarta-sans';
 import './index.css';
 
 // In native Android APK context, route relative API requests to backend host
