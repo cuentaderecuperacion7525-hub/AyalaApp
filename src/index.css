@@ -63,8 +63,8 @@
 
 /* Fallback for native Android / mobile viewports so headers clear the status bar cleanly */
 .is-native-android {
-  --sat: max(env(safe-area-inset-top, 0px), 36px);
-  --sab: max(env(safe-area-inset-bottom, 0px), 16px);
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
 }
 
 html, body, #root {
@@ -770,15 +770,9 @@ button:focus-visible, a:focus-visible, [role="switch"]:focus-visible {
 }
 input:focus-visible, textarea:focus-visible { outline: none; }
 
-/* Encabezados con efecto cristal */
+/* Encabezados con sombra suave */
 #chat-header-banner {
-  background-color: rgba(248, 247, 251, 0.82);
-  -webkit-backdrop-filter: saturate(160%) blur(16px);
-  backdrop-filter: saturate(160%) blur(16px);
-  box-shadow: 0 1px 0 rgba(43, 41, 62, 0.06);
-}
-.dark #chat-header-banner {
-  background-color: rgba(28, 27, 46, 0.82) !important;
+  box-shadow: 0 2px 8px rgba(101, 82, 232, 0.16);
 }
 
 /* Barra de escritura flotante y suave */

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Contact } from '../types';
+import { INITIAL_CONTACTS } from '../data/initialData';
 import { ShieldCheck, Lock, ArrowLeft, AlertCircle, Delete } from 'lucide-react';
 
 interface WelcomeGatewayProps {
@@ -21,6 +22,28 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
   const [pinError, setPinError] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [shake, setShake] = useState<boolean>(false); // solo animación visual
+
+  // Garantiza que las tarjetas de Papá, Mamá y los Hijos estén siempre visibles
+  const displayContacts = useMemo(() => {
+    const map = new Map<string, Contact>();
+    for (const base of INITIAL_CONTACTS) {
+      map.set(base.id, base);
+    }
+    for (const c of contacts) {
+      map.set(c.id, c);
+    }
+    const list = Array.from(map.values());
+    const orderIds = INITIAL_CONTACTS.map((c) => c.id);
+    list.sort((a, b) => {
+      const idxA = orderIds.indexOf(a.id);
+      const idxB = orderIds.indexOf(b.id);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [contacts]);
 
   const getExpectedPin = () => {
     return localStorage.getItem('famichat_admin_pin') || '1122';
@@ -259,7 +282,7 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
 
           {/* Avatars Listing Grid */}
           <div className="grid grid-cols-2 gap-2.5">
-            {contacts.map((c) => (
+            {displayContacts.map((c) => (
               <button
                 key={c.id}
                 onClick={() => handleSelect(c)}
@@ -288,7 +311,7 @@ export const WelcomeGateway: React.FC<WelcomeGatewayProps> = ({ contacts, onSele
 
       {/* Low-profile secure credits legend at the bottom */}
       <div className="text-center text-[9.5px] text-white/35 pb-0.5 font-medium select-none shrink-0">
-        Encriptación local activa • FamiChat Martínez r2.7
+        Seguridad Familiar Privada • FamiChat Martínez
       </div>
     </div>
   );

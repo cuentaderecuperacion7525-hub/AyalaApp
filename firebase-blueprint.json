@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "Contact": {
+      "title": "Contact",
+      "description": "Perfil de un integrante de la familia en FamiChat asociado a su ID único y cuenta de Gmail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID único del familiar en la base de datos" },
+        "name": { "type": "string", "description": "Nombre completo del familiar" },
+        "email": { "type": "string", "format": "email", "description": "Correo electrónico de Gmail asociado al familiar" },
+        "firebaseUid": { "type": "string", "description": "UID de Firebase Authentication vinculado al correo de Gmail" },
+        "avatarEmoji": { "type": "string", "description": "Emoji representativo del perfil" },
+        "avatarColor": { "type": "string", "description": "Clase de color Tailwind del avatar" },
+        "relationship": { "type": "string", "description": "Parentesco familiar" },
+        "role": { "type": "string", "enum": ["admin", "member"], "description": "Rol de acceso dentro de FamiChat" },
+        "isOnline": { "type": "boolean", "description": "Estado de conexión en tiempo real" },
+        "lastActive": { "type": "string", "description": "Texto descriptivo de última conexión" },
+        "lastActiveTimestamp": { "type": "number", "description": "Marca de tiempo Unix en milisegundos de última actividad" },
+        "phone": { "type": "string", "description": "Número telefónico opcional" },
+        "customStatus": { "type": "string", "description": "Estado personalizado del familiar" }
+      },
+      "required": ["id", "name", "avatarEmoji", "avatarColor", "relationship", "role", "isOnline", "lastActive"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Mensaje familiar en tiempo real (grupal o privado 1 a 1) con soporte de cifrado Web Crypto API",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "ID único del mensaje" },
+        "senderId": { "type": "string", "description": "ID del familiar emisor" },
+        "senderName": { "type": "string", "description": "Nombre del familiar emisor" },
+        "senderEmail": { "type": "string", "description": "Gmail del familiar emisor" },
+        "receiverId": { "type": "string", "description": "ID del familiar receptor o 'family-group'" },
+        "receiverEmail": { "type": "string", "description": "Gmail del familiar receptor en mensajes directos" },
+        "text": { "type": "string", "description": "Texto del mensaje o marcador cifrado" },
+        "encryptedPayload": { "type": "string", "description": "Carga útil cifrada en AES-GCM (Base64) mediante Web Crypto API" },
+        "iv": { "type": "string", "description": "Vector de inicialización AES-GCM (Base64)" },
+        "isEncrypted": { "type": "boolean", "description": "Indica si el texto está cifrado con Web Crypto API" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Fecha y hora ISO del mensaje" },
+        "createdAtMs": { "type": "number", "description": "Timestamp numérico para ordenamiento exacto en tiempo real" },
+        "status": { "type": "string", "enum": ["sent", "delivered", "read"], "description": "Estado de entrega y lectura" },
+        "reactions": { "type": "array", "items": { "type": "string" }, "description": "Reacciones con emojis" },
+        "messageType": { "type": "string", "enum": ["text", "image", "audio"], "description": "Tipo de contenido del mensaje" },
+        "mediaUrl": { "type": "string", "description": "URI Base64 de imagen o nota de voz" },
+        "isStarred": { "type": "boolean", "description": "Indica si el mensaje está destacado" },
+        "replyToId": { "type": "string", "description": "ID del mensaje al que responde" },
+        "replyToText": { "type": "string", "description": "Texto citado del mensaje respondido" },
+        "replyToSenderName": { "type": "string", "description": "Autor del mensaje respondido" }
+      },
+      "required": ["id", "senderId", "senderName", "receiverId", "text", "timestamp", "status"]
+    },
+    "TypingStatus": {
+      "title": "TypingStatus",
+      "description": "Estado efímero en tiempo real de quién está escribiendo en qué sala",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID del familiar escribiendo" },
+        "roomId": { "type": "string", "description": "ID del chat destino o 'family-group'" },
+        "updatedAtMs": { "type": "number", "description": "Timestamp en milisegundos" }
+      },
+      "required": ["userId", "roomId", "updatedAtMs"]
+    }
+  },
+  "firestore": {
+    "/contacts/{contactId}": {
+      "schema": { "$ref": "#/entities/Contact" },
+      "description": "Directorio de perfiles familiares vinculados con Gmail y presencia en línea"
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Colección de mensajes familiares persistentes en tiempo real"
+    },
+    "/typing/{userId}": {
+      "schema": { "$ref": "#/entities/TypingStatus" },
+      "description": "Indicadores de escritura en tiempo real"
+    }
+  }
+}

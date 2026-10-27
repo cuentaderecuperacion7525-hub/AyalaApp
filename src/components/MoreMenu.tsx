@@ -152,6 +152,11 @@ export const MoreMenu: React.FC<MoreMenuProps> = ({
                 <span className="text-[10px] text-slate-500 dark:text-[#cfcde8] font-medium italic block">
                   {currentUser.relationship}
                 </span>
+                {currentUser.email && (
+                  <span className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-mono block truncate mt-0.5">
+                    ✉️ {currentUser.email}
+                  </span>
+                )}
                 {currentUser.phone && (
                   <span className="text-[9.5px] text-slate-400 dark:text-[#9a98b8] block truncate mt-0.5">{currentUser.phone}</span>
                 )}

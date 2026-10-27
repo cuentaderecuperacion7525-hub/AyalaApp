@@ -124,7 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       phone: newMemberPhone.trim() || undefined
     });
 
-    setSuccessMsg('¡Familiar agregado con éxito!');
+    setSuccessMsg('¡Familiar agregado con éxito en la nube!');
     setNewMemberName('');
     setNewMemberRel('');
     setNewMemberPhone('');
@@ -189,13 +189,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => setActiveTab('chats')}
           className={`flex-1 py-3 text-center text-xs font-bold transition-all relative cursor-pointer ${
             activeTab === 'chats' 
-              ? 'text-emerald-700 bg-white' 
+              ? 'text-[#6552e8] bg-white' 
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
           }`}
         >
           Conversaciones 🏡
           {activeTab === 'chats' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-t-full" />
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#6552e8] rounded-t-full" />
           )}
         </button>
         <button
@@ -330,18 +330,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <div
                   id="group-chat-room-item"
-                  className={`p-3.5 flex items-start gap-3 cursor-pointer transition-all hover:bg-slate-50 relative ${
-                    activeId === 'family-group' ? 'bg-emerald-50/70 border-l-4 border-emerald-500' : ''
+                  className={`p-3.5 flex items-start gap-3 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-[#1f1e33] relative ${
+                    activeId === 'family-group' ? 'bg-[#6552e8]/10 dark:bg-[#6552e8]/20 border-l-4 border-[#6552e8]' : ''
                   }`}
                   onClick={() => onSelectChat('family-group')}
                 >
-                  <div className="w-11 h-11 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xl shadow-md border border-white shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-[#6552e8] text-white flex items-center justify-center text-xl shadow-md border border-white shrink-0">
                     🏡
                   </div>
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-800 text-sm tracking-wide">
+                      <span className="font-semibold text-slate-800 dark:text-white text-sm tracking-wide">
                         Familia Unida 🏡
                       </span>
                       <span className="text-[10px] text-slate-400 font-medium">
@@ -351,7 +351,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     
                     <div className="flex items-center justify-between mt-0.5">
                       {groupIsWriting ? (
-                        <p className="text-xs text-emerald-600 font-bold truncate pr-4 animate-pulse">
+                        <p className="text-xs text-[#6552e8] font-bold truncate pr-4 animate-pulse">
                           Escribiendo...
                         </p>
                       ) : (
@@ -380,7 +380,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       {contacts.slice(0, 3).map((item) => (
                         <span 
                           key={item.id} 
-                          className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium border border-slate-200"
+                          className="text-[10px] bg-slate-100 dark:bg-[#201f35] text-slate-600 dark:text-slate-300 px-1.5 py-0.2 rounded font-medium border border-slate-200 dark:border-[#34325a]"
                         >
                           {item.name.split(' ')[0]}
                         </span>
@@ -413,8 +413,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                    <div
                      key={contact.id}
                      id={`chat-room-item-${contact.id}`}
-                     className={`group p-3.5 flex items-start gap-3 cursor-pointer transition-all hover:bg-slate-50 relative ${
-                       isActive ? 'bg-emerald-50/70 border-l-4 border-emerald-500' : ''
+                     className={`group p-3.5 flex items-start gap-3 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-[#1f1e33] relative ${
+                       isActive ? 'bg-[#6552e8]/10 dark:bg-[#6552e8]/20 border-l-4 border-[#6552e8]' : ''
                      }`}
                      onClick={() => onSelectChat(contact.id)}
                    >
@@ -462,13 +462,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                          </p>
                        )}
 
-                       <div className="flex items-center gap-2 mt-1">
+                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                          {contact.isOnline ? (
                            <span className="text-[10.5px] text-emerald-650 font-semibold uppercase tracking-wider text-[9px] animate-pulse">
                              {formatLastActive(contact)}
                            </span>
                          ) : (
-                           <span className="text-[10.5px] text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
+                           <span className="text-[10.5px] text-slate-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[160px]">
                              {formatLastActive(contact)}
                            </span>
                          )}
@@ -523,17 +523,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               {/* Subtabs for Modal Navigation */}
-              <div className="flex gap-1.5 p-0.5 bg-slate-950/20 rounded-lg text-xs">
+              <div className="flex gap-1 p-0.5 bg-slate-950/20 rounded-lg text-[11px]">
                 <button
                   type="button"
                   onClick={() => { setAdminModalTab('add-member'); setSuccessMsg(''); }}
-                  className={`flex-1 py-1.5 px-2 rounded-md font-medium text-center transition-all cursor-pointer ${
+                  className={`flex-1 py-1.5 px-1.5 rounded-md font-medium text-center transition-all cursor-pointer ${
                     adminModalTab === 'add-member' 
                       ? 'bg-white text-teal-700 shadow-sm' 
                       : 'text-teal-50 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  ➕ Añadir Miembro
+                  ➕ Añadir Familiar
                 </button>
                 <button
                   type="button"
@@ -543,13 +543,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     setPinError('');
                     setTempPin(localStorage.getItem('famichat_admin_pin') || '1122');
                   }}
-                  className={`flex-1 py-1.5 px-2 rounded-md font-medium text-center transition-all cursor-pointer ${
+                  className={`flex-1 py-1.5 px-1.5 rounded-md font-medium text-center transition-all cursor-pointer ${
                     adminModalTab === 'security' 
                       ? 'bg-white text-teal-700 shadow-sm' 
                       : 'text-teal-50 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  🔒 Clave Switcher
+                  🔒 Clave PIN
                 </button>
               </div>
             </div>
@@ -624,7 +624,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
               </div>
             ) : (
-              <form onSubmit={handleCreateContactSubmit} className="p-4 flex-1 space-y-3.5">
+              <form onSubmit={handleCreateContactSubmit} className="p-4 flex-1 space-y-3">
                 {successMsg ? (
                   <div className="py-8 text-center flex flex-col items-center justify-center gap-2 text-emerald-600 animate-pulse">
                     <CheckCircle className="w-12 h-12" />
@@ -643,7 +643,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         placeholder="Ej. Tía Margarita Silva"
                         value={newMemberName}
                         onChange={(e) => setNewMemberName(e.target.value)}
-                        className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all text-slate-800"
+                        className="w-full text-xs border border-slate-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all text-slate-800"
                       />
                     </div>
 
@@ -659,7 +659,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           placeholder="Ej. Primita / Hermano"
                           value={newMemberRel}
                           onChange={(e) => setNewMemberRel(e.target.value)}
-                          className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all text-slate-800"
+                          className="w-full text-xs border border-slate-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all text-slate-800"
                         />
                       </div>
 
@@ -673,7 +673,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           placeholder="Ej. +569 ..."
                           value={newMemberPhone}
                           onChange={(e) => setNewMemberPhone(e.target.value)}
-                          className="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all text-slate-800"
+                          className="w-full text-xs border border-slate-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 transition-all text-slate-800"
                         />
                       </div>
                     </div>

@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions for FamiChat Family Cloud Database
+    // ===============================================================
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidContact(data) {
+      return data.keys().hasAll(['id', 'name', 'avatarEmoji', 'avatarColor', 'relationship', 'role', 'isOnline', 'lastActive']) &&
+             isValidString(data.id, 1, 120) &&
+             isValidString(data.name, 1, 120) &&
+             isValidString(data.avatarEmoji, 1, 30) &&
+             isValidString(data.avatarColor, 1, 60) &&
+             isValidString(data.relationship, 1, 80) &&
+             (data.role == 'admin' || data.role == 'member') &&
+             data.isOnline is bool &&
+             isValidString(data.lastActive, 1, 120);
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['id', 'senderId', 'senderName', 'receiverId', 'text', 'timestamp', 'status']) &&
+             isValidString(data.id, 1, 150) &&
+             isValidString(data.senderId, 1, 120) &&
+             isValidString(data.senderName, 1, 120) &&
+             isValidString(data.receiverId, 1, 120) &&
+             data.text is string && data.text.size() <= 20000 &&
+             isValidString(data.timestamp, 1, 80) &&
+             (data.status == 'sent' || data.status == 'delivered' || data.status == 'read');
+    }
+
+    function isValidTyping(data) {
+      return data.keys().hasAll(['userId', 'roomId', 'updatedAtMs']) &&
+             isValidString(data.userId, 1, 120) &&
+             isValidString(data.roomId, 0, 120) &&
+             data.updatedAtMs is number;
+    }
+
+    // ===============================================================
+    // Collection Rules (Supports Web Google Auth & Capacitor Android APK)
+    // ===============================================================
+
+    match /contacts/{contactId} {
+      allow read: if true;
+      allow create, update: if isValidContact(request.resource.data);
+      allow delete: if request.auth != null;
+    }
+
+    match /messages/{messageId} {
+      allow read: if true;
+      allow create, update: if isValidMessage(request.resource.data);
+      allow delete: if true;
+    }
+
+    match /typing/{userId} {
+      allow read: if true;
+      allow create, update: if isValidTyping(request.resource.data);
+      allow delete: if true;
+    }
+  }
+}

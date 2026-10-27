@@ -16,6 +16,25 @@ import { playSendSound, playNotificationSound } from './utils/audio';
 import { apiFetch } from './utils/api';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
+import {
+  ensureInitialContactsInCloud,
+  subscribeToCloudContacts,
+  subscribeToCloudMessages,
+  subscribeToCloudTyping,
+  sendCloudMessage,
+  markCloudMessagesAsRead,
+  deleteCloudMessage,
+  clearCloudChatMessages,
+  toggleCloudMessageReaction,
+  toggleCloudMessageStar,
+  saveCloudContact,
+  updateCloudPresence,
+  updateCloudTyping,
+} from './services/firebase';
+import {
+  initNativeNotifications,
+  triggerIncomingMessageNotification,
+} from './services/nativeNotifications';
 
 const MESSAGES_STORAGE_KEY = 'famichat_messages_v2';
 const CONTACTS_STORAGE_KEY = 'famichat_contacts_v2';
@@ -28,20 +47,35 @@ function loadCachedContacts(): Contact[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         const now = Date.now();
-        return parsed.map((c: Contact) => {
+        const map = new Map<string, Contact>();
+        for (const base of INITIAL_CONTACTS) {
+          map.set(base.id, { ...base });
+        }
+        for (const c of parsed as Contact[]) {
           const validTs =
             typeof c.lastActiveTimestamp === 'number' &&
             c.lastActiveTimestamp > 0 &&
             c.lastActiveTimestamp <= now + 60000
               ? c.lastActiveTimestamp
               : undefined;
-          return {
+          map.set(c.id, {
             ...c,
             isOnline: false,
             lastActiveTimestamp: validTs,
             lastActive: validTs ? 'Desconectado' : 'Sin conexión registrada',
-          };
+          });
+        }
+        const merged = Array.from(map.values());
+        const orderIds = INITIAL_CONTACTS.map((c) => c.id);
+        merged.sort((a, b) => {
+          const idxA = orderIds.indexOf(a.id);
+          const idxB = orderIds.indexOf(b.id);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return a.name.localeCompare(b.name);
         });
+        return merged;
       }
     }
   } catch (e) {
@@ -293,8 +327,12 @@ export default function App() {
   // Report offline status when app goes to background or closes
   useEffect(() => {
     const reportOffline = (uid?: string) => {
-      const targetId = uid || activeUserRef.current?.id;
+      const targetUser = activeUserRef.current;
+      const targetId = uid || targetUser?.id;
       if (!targetId) return;
+      if (targetUser) {
+        updateCloudPresence(targetUser, false).catch(() => {});
+      }
       apiFetch('/api/presence-offline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -505,12 +543,25 @@ export default function App() {
     }
   };
 
-  // Check if Web Push has browser support
+  // Check if Web Push or Native Capacitor Notifications are supported & initialize channel
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
+    if (typeof window === 'undefined') return;
+
+    if (Capacitor.isNativePlatform()) {
+      setPushSupported(true);
+      initNativeNotifications((roomId) => {
+        setActiveChannelId(roomId);
+        handleSetMobileView('chat');
+      }).then((granted) => {
+        setPushEnabled(granted);
+      });
+      return;
+    }
+
+    if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
       setPushSupported(true);
     }
-  }, []);
+  }, [handleSetMobileView]);
 
   // Listen to messages from our Service Worker for reactive navigation
   useEffect(() => {
@@ -541,6 +592,15 @@ export default function App() {
   // Sync Push subscription with current active user upon change
   useEffect(() => {
     if (!pushSupported || !activeUser) return;
+    if (Capacitor.isNativePlatform()) {
+      initNativeNotifications((roomId) => {
+        setActiveChannelId(roomId);
+        handleSetMobileView('chat');
+      }).then((granted) => {
+        setPushEnabled(granted);
+      });
+      return;
+    }
 
     let active = true;
     navigator.serviceWorker.ready.then(async reg => {
@@ -568,9 +628,34 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [pushSupported, activeUser?.id]);
+  }, [pushSupported, activeUser?.id, handleSetMobileView]);
 
   const subscribeUserToPush = async (userId: string) => {
+    if (Capacitor.isNativePlatform()) {
+      setSubscribingPush(true);
+      try {
+        const granted = await initNativeNotifications((roomId) => {
+          setActiveChannelId(roomId);
+          handleSetMobileView('chat');
+        });
+        setPushEnabled(granted);
+        const toast: LocalNotification = {
+          id: 'native-push-' + Date.now(),
+          title: granted ? 'Alertas Nativas Activas 🔔' : 'Permiso Requerido 🔕',
+          body: granted
+            ? 'Canal nativo Android con sonido activado en tiempo real.'
+            : 'Habilita las notificaciones de FamiChat en Ajustes de Android.',
+          avatarEmoji: granted ? '🔔' : '🔕',
+          avatarColor: granted ? 'bg-emerald-600' : 'bg-amber-600',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setNotifications((prev) => [toast, ...prev.slice(0, 2)]);
+      } finally {
+        setSubscribingPush(false);
+      }
+      return;
+    }
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       const toast: LocalNotification = {
         id: 'push-not-supported-' + Date.now(),
@@ -720,6 +805,8 @@ export default function App() {
   useEffect(() => {
     if (!activeUser || mobileView !== 'chat' || !activeChannelId) return;
 
+    markCloudMessagesAsRead(activeUser.id, activeChannelId, messages).catch(() => {});
+
     apiFetch('/api/messages/read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -728,185 +815,165 @@ export default function App() {
         roomId: activeChannelId,
       }),
     }).catch(() => {});
-  }, [activeUser?.id, mobileView, activeChannelId]);
+  }, [activeUser?.id, mobileView, activeChannelId, messages.length]);
 
   const inFlightMessageIdsRef = useRef<Set<string>>(new Set());
   const deletedMessageIdsRef = useRef<Set<string>>(new Set());
+  const notifiedMessageIdsRef = useRef<Set<string>>(new Set());
+  const initialMessagesSnapshotLoadedRef = useRef<boolean>(false);
+  const contactsRef = useRef<Contact[]>(contacts);
+  useEffect(() => {
+    contactsRef.current = contacts;
+  }, [contacts]);
 
-  // --- Dynamic REAL-TIME syncing Poller ---
+  // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE FIRESTORE (onSnapshot WebSockets) ---
   useEffect(() => {
     let isMounted = true;
 
-    const loadState = async () => {
-      try {
-        // 1. Flush any pending offline messages from the outbox that are not currently in-flight
-        const outbox = getOutboxQueue().filter(
-          item => item && item.id && !inFlightMessageIdsRef.current.has(item.id) && !deletedMessageIdsRef.current.has(item.id)
-        );
-        if (outbox.length > 0) {
-          const flushedIds = new Set<string>();
-          for (const pendingPayload of outbox) {
-            try {
-              const sendRes = await apiFetch('/api/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(pendingPayload),
-              });
-              if (sendRes.ok) {
-                flushedIds.add(pendingPayload.id);
+    ensureInitialContactsInCloud().catch(() => {});
+
+    const unsubContacts = subscribeToCloudContacts(
+      (cloudContacts) => {
+        if (!isMounted) return;
+        setContacts(cloudContacts);
+        try {
+          localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(cloudContacts));
+        } catch {
+          // ignore
+        }
+
+        if (activeUserRef.current) {
+          const updatedMe = cloudContacts.find((c) => c.id === activeUserRef.current?.id);
+          if (updatedMe) {
+            setActiveUser((prev) => {
+              if (!prev) return updatedMe;
+              if (
+                prev.isOnline !== updatedMe.isOnline ||
+                prev.lastActive !== updatedMe.lastActive
+              ) {
+                return updatedMe;
               }
-            } catch {
-              // keep in outbox for next retry
-            }
-          }
-          if (flushedIds.size > 0) {
-            const latestOutbox = getOutboxQueue().filter(
-              item => item && item.id && !flushedIds.has(item.id) && !deletedMessageIdsRef.current.has(item.id)
-            );
-            saveOutboxQueue(latestOutbox);
+              return prev;
+            });
           }
         }
-
-        // 2. Fetch real contacts and presence state
-        let currentContactsList = contacts;
-        const contactsQuery = activeUser ? `?activeUser=${encodeURIComponent(activeUser.id)}` : '';
-        const cRes = await apiFetch(`/api/contacts${contactsQuery}`);
-        if (cRes.ok && isMounted) {
-          const list: Contact[] = await cRes.json();
-          currentContactsList = list;
-          setContacts(list);
-          try {
-            localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(list));
-          } catch {
-            // ignore storage errors
-          }
-
-          if (activeUser) {
-            const currentInList = list.find((c: Contact) => c.id === activeUser.id);
-            if (currentInList) {
-              setActiveUser(prev => {
-                if (!prev) return currentInList;
-                if (
-                  prev.isOnline !== currentInList.isOnline ||
-                  prev.lastActive !== currentInList.lastActive ||
-                  prev.lastActiveTimestamp !== currentInList.lastActiveTimestamp
-                ) {
-                  return currentInList;
-                }
-                return prev;
-              });
-            }
-          }
-        }
-
-        if (!activeUser) {
-          if (isMounted) setLoading(false);
-          return;
-        }
-
-        // 3. Fetch real messages from server and merge with any still-pending outbox items
-        const activeRoomParam =
-          mobileViewRef.current === 'chat' ? `&activeRoom=${encodeURIComponent(activeChannelIdRef.current)}` : '';
-        const mRes = await apiFetch(
-          `/api/messages?activeUser=${encodeURIComponent(activeUser.id)}${activeRoomParam}`
-        );
-
-        if (mRes.ok && isMounted) {
-          const rawServerList: Message[] = await mRes.json();
-          const serverList = rawServerList.filter(m => !deletedMessageIdsRef.current.has(m.id));
-          const currentOutbox = getOutboxQueue();
-          const serverIds = new Set(serverList.map(m => m.id));
-
-          // Preserve any local message that hasn't finished syncing yet so it NEVER disappears
-          const unsyncedMessages: Message[] = currentOutbox
-            .filter(item => item && item.id && !serverIds.has(item.id) && !deletedMessageIdsRef.current.has(item.id))
-            .map(item => ({
-              id: item.id,
-              senderId: item.senderId,
-              senderName: item.senderName,
-              receiverId: item.receiverId,
-              text: item.text,
-              timestamp: item.timestamp || new Date().toISOString(),
-              status: 'sent' as const,
-              messageType: item.messageType || 'text',
-              mediaUrl: item.mediaUrl,
-              replyToId: item.replyToId,
-              replyToText: item.replyToText,
-              replyToSenderName: item.replyToSenderName,
-            }));
-
-          const mergedList = [...serverList, ...unsyncedMessages];
-          saveCachedMessages(mergedList);
-
-          setMessages(prev => {
-            const prevIds = new Set(prev.map(m => m.id));
-            const brandNewIncoming = serverList.filter(
-              (m: Message) =>
-                !prevIds.has(m.id) &&
-                m.senderId !== activeUser.id &&
-                (m.receiverId === 'family-group' || m.receiverId === activeUser.id)
-            );
-
-            if (prev.length > 0 && brandNewIncoming.length > 0) {
-              const leadMsg = brandNewIncoming[brandNewIncoming.length - 1];
-              const senderContact = currentContactsList.find(c => c.id === leadMsg.senderId);
-
-              const isWatchingAndActive =
-                mobileViewRef.current === 'chat' &&
-                (activeChannelIdRef.current === leadMsg.receiverId ||
-                  (activeChannelIdRef.current === leadMsg.senderId && leadMsg.receiverId === activeUser.id));
-
-              if (!isWatchingAndActive) {
-                const toast: LocalNotification = {
-                  id: 'notif-' + Date.now(),
-                  title: `Nuevo mensaje de ${leadMsg.senderName}`,
-                  body:
-                    leadMsg.messageType === 'text'
-                      ? leadMsg.text
-                      : `📥 Mandó un archivo multimedia (${
-                          leadMsg.messageType === 'audio' ? 'Nota de Voz 🎤' : 'Imagen 📷'
-                        })`,
-                  avatarEmoji: senderContact?.avatarEmoji || '👤',
-                  avatarColor: senderContact?.avatarColor || 'bg-slate-500',
-                  timestamp: new Date(leadMsg.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  }),
-                };
-                setNotifications(prevNot => [toast, ...prevNot.slice(0, 3)]);
-                if (soundOn) playNotificationSound();
-              } else {
-                if (soundOn) playSendSound();
-              }
-            }
-            return mergedList;
-          });
-        }
-
-        // 4. Fetch active typing indicators
-        const tRes = await apiFetch('/api/typing');
-        if (tRes.ok && isMounted) {
-          const dict = await tRes.json();
-          setTypingRegistry(dict);
-        }
-
-        if (isMounted) setServerState('connected');
-      } catch (e) {
-        console.warn('Connection reconnecting/polling...', e);
-        if (isMounted) setServerState('reconnecting');
-      } finally {
+        setLoading(false);
+        setServerState('connected');
+      },
+      () => {
         if (isMounted) setLoading(false);
       }
-    };
+    );
 
-    loadState();
-    const interval = setInterval(loadState, 2200);
+    const unsubMessages = subscribeToCloudMessages((cloudMessages) => {
+      if (!isMounted) return;
+      const filteredCloud = cloudMessages.filter(
+        (m) => !deletedMessageIdsRef.current.has(m.id)
+      );
+
+      // Si es la primera carga histórica, registrar IDs existentes para no disparar alertas antiguas
+      if (!initialMessagesSnapshotLoadedRef.current) {
+        filteredCloud.forEach((m) => notifiedMessageIdsRef.current.add(m.id));
+        initialMessagesSnapshotLoadedRef.current = true;
+      } else if (activeUserRef.current) {
+        const currentUser = activeUserRef.current;
+
+        const brandNewForMe = filteredCloud.filter((m) => {
+          if (notifiedMessageIdsRef.current.has(m.id)) return false;
+          notifiedMessageIdsRef.current.add(m.id);
+
+          if (m.senderId === currentUser.id) return false;
+
+          const isGroupMsg = m.receiverId === 'family-group';
+          const isDirectById = m.receiverId === currentUser.id;
+
+          return isGroupMsg || isDirectById;
+        });
+
+        if (brandNewForMe.length > 0) {
+          const leadMsg = brandNewForMe[brandNewForMe.length - 1];
+          const senderContact = contactsRef.current.find((c) => c.id === leadMsg.senderId);
+
+          const isWatchingThisChat =
+            document.visibilityState === 'visible' &&
+            mobileViewRef.current === 'chat' &&
+            (activeChannelIdRef.current === leadMsg.receiverId ||
+              (activeChannelIdRef.current === leadMsg.senderId &&
+                leadMsg.receiverId === currentUser.id));
+
+          // Disparar notificación nativa Capacitor en Android (con sonido real en segundo plano)
+          if (!isWatchingThisChat || document.visibilityState === 'hidden') {
+            triggerIncomingMessageNotification(leadMsg, senderContact, soundOn).catch(
+              () => {}
+            );
+          }
+
+          if (!isWatchingThisChat) {
+            const toast: LocalNotification = {
+              id: 'notif-' + leadMsg.id,
+              title: `Nuevo mensaje de ${leadMsg.senderName}`,
+              body:
+                leadMsg.messageType === 'text'
+                  ? leadMsg.text
+                  : `📥 Mandó un archivo multimedia (${
+                      leadMsg.messageType === 'audio' ? 'Nota de Voz 🎤' : 'Imagen 📷'
+                    })`,
+              avatarEmoji: senderContact?.avatarEmoji || '👤',
+              avatarColor: senderContact?.avatarColor || 'bg-slate-500',
+              timestamp: new Date(leadMsg.timestamp).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+            };
+            setNotifications((prevNot) => [toast, ...prevNot.slice(0, 3)]);
+            if (soundOn) playNotificationSound();
+          } else {
+            if (soundOn) playSendSound();
+          }
+        }
+      }
+
+      saveCachedMessages(filteredCloud);
+      setMessages(filteredCloud);
+      setLoading(false);
+    });
+
+    const unsubTyping = subscribeToCloudTyping((dict) => {
+      if (!isMounted) return;
+      setTypingRegistry(dict);
+    });
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      unsubContacts();
+      unsubMessages();
+      unsubTyping();
     };
-  }, [activeUser?.id, activeChannelId, soundOn]);
+  }, [soundOn]);
+
+  // Pulso de presencia en línea en Firestore para el usuario activo
+  useEffect(() => {
+    if (!activeUser) return;
+
+    const sendHeartbeat = () => {
+      if (document.visibilityState === 'visible') {
+        const customSt =
+          localStorage.getItem(`famichat_status_${activeUser.id}`) || 'En línea';
+        updateCloudPresence(activeUser, true, customSt).catch(() => {});
+      }
+    };
+
+    sendHeartbeat();
+    const hbInterval = setInterval(sendHeartbeat, 20000);
+
+    const onStatusChange = () => sendHeartbeat();
+    window.addEventListener('status-change', onStatusChange);
+
+    return () => {
+      clearInterval(hbInterval);
+      window.removeEventListener('status-change', onStatusChange);
+    };
+  }, [activeUser?.id]);
 
   // Handle active identity shift
   const handleUserChange = (newUser: Contact) => {
@@ -921,6 +988,7 @@ export default function App() {
 
   const executeUserChange = (newUser: Contact) => {
     if (activeUser && activeUser.id !== newUser.id) {
+      updateCloudPresence(activeUser, false).catch(() => {});
       apiFetch('/api/presence-offline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -931,6 +999,7 @@ export default function App() {
     setActiveUser(newUser);
     localStorage.setItem('famichat_active_user_id', newUser.id);
     setIsSwitcherUnlocked(false);
+    updateCloudPresence(newUser, true).catch(() => {});
 
     const toast: LocalNotification = {
       id: 'session-switch-' + Date.now(),
@@ -947,7 +1016,7 @@ export default function App() {
     handleSetMobileView('list');
   };
 
-  // --- Send Message Action Engine (Persists locally + syncs with server API) ---
+  // --- Send Message Action Engine (Persists in Firebase Firestore with Web Crypto API + Express mirror) ---
   const handleSendMessage = async (
     text: string,
     messageType?: 'text' | 'image' | 'audio',
@@ -983,6 +1052,7 @@ export default function App() {
       receiverId: payload.receiverId,
       text: payload.text,
       timestamp: nowIso,
+      createdAtMs: Date.now(),
       status: 'sent',
       messageType: payload.messageType as any,
       mediaUrl: payload.mediaUrl,
@@ -991,14 +1061,16 @@ export default function App() {
       replyToSenderName: payload.replyToSenderName,
     };
 
-    // 1. Save immediately in local state & localStorage so it NEVER disappears on app exit
+    notifiedMessageIdsRef.current.add(payload.id);
+
+    // 1. Save immediately in local state & localStorage
     setMessages(prev => {
+      if (prev.some(m => m.id === optimisticMsg.id)) return prev;
       const next = [...prev, optimisticMsg];
       saveCachedMessages(next);
       return next;
     });
 
-    // 2. Add to persistent outbox until server confirms receipt
     inFlightMessageIdsRef.current.add(payload.id);
     const currentOutbox = getOutboxQueue();
     saveOutboxQueue([...currentOutbox, payload]);
@@ -1006,41 +1078,32 @@ export default function App() {
     if (soundOn) playSendSound();
 
     try {
-      // Clear typing indicator
-      apiFetch('/api/typing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: activeUser.id, isTyping: false }),
-      }).catch(() => {});
+      updateCloudTyping(activeUser.id, activeChannelId, false).catch(() => {});
 
-      const response = await apiFetch('/api/messages', {
+      // 2. Guardar permanentemente en Firebase Firestore con cifrado Web Crypto API (AES-GCM 256)
+      await sendCloudMessage(optimisticMsg);
+
+      const updatedOutbox = getOutboxQueue().filter(item => item.id !== payload.id);
+      saveOutboxQueue(updatedOutbox);
+
+      // 3. Sincronizar espejo opcional en servidor Express para Web Push de escritorio
+      apiFetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        const saved: Message = await response.json();
-        // Remove from outbox since server persisted it
-        const updatedOutbox = getOutboxQueue().filter(item => item.id !== payload.id);
-        saveOutboxQueue(updatedOutbox);
-
-        setMessages(prev => {
-          const next = prev.map(m => (m.id === payload.id ? saved : m));
-          saveCachedMessages(next);
-          return next;
-        });
-      }
+      }).catch(() => {});
     } catch (e) {
-      console.error('Message queued in local outbox for automatic retry:', e);
+      console.error('Message queued for automatic cloud retry:', e);
     } finally {
       inFlightMessageIdsRef.current.delete(payload.id);
     }
   };
 
-  // --- Clear chat conversation option (Borrar conversaciones) ---
+  // --- Clear chat conversation option (Borrar conversaciones en Firestore y local) ---
   const handleClearChat = async (channelId: string | 'family-group') => {
     if (!activeUser) return;
+
+    const snapshotToClear = [...messages];
 
     // Update local state & cache immediately
     setMessages(prev => {
@@ -1079,33 +1142,33 @@ export default function App() {
     saveOutboxQueue(filteredOutbox);
 
     try {
-      const response = await apiFetch('/api/messages', {
+      await clearCloudChatMessages(channelId, activeUser.id, snapshotToClear);
+
+      apiFetch('/api/messages', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           channelId,
           userId: activeUser.id,
         }),
-      });
+      }).catch(() => {});
 
-      if (response.ok) {
-        const toast: LocalNotification = {
-          id: 'clear-' + Date.now(),
-          title: 'Historial Removido',
-          body: 'Se borraron los mensajes de esta conversación de forma segura.',
-          avatarEmoji: '🗑️',
-          avatarColor: 'bg-rose-600',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setNotifications(prev => [toast, ...prev.slice(0, 1)]);
-        if (soundOn) playNotificationSound();
-      }
+      const toast: LocalNotification = {
+        id: 'clear-' + Date.now(),
+        title: 'Historial Removido',
+        body: 'Se borraron los mensajes de esta conversación en la nube de forma segura.',
+        avatarEmoji: '🗑️',
+        avatarColor: 'bg-rose-600',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setNotifications(prev => [toast, ...prev.slice(0, 1)]);
+      if (soundOn) playNotificationSound();
     } catch (e) {
-      console.error('Failed to clear chat room on server:', e);
+      console.error('Failed to clear chat room on cloud:', e);
     }
   };
 
-  // --- Delete individual message (Borrar mensaje específico) ---
+  // --- Delete individual message (Borrar mensaje específico en Firestore) ---
   const handleDeleteMessage = async (messageId: string) => {
     deletedMessageIdsRef.current.add(messageId);
     setMessages(prev => {
@@ -1118,29 +1181,30 @@ export default function App() {
     saveOutboxQueue(updatedOutbox);
 
     try {
-      const response = await apiFetch(`/api/messages/${messageId}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        const toast: LocalNotification = {
-          id: 'deleted-' + Date.now(),
-          title: 'Mensaje Eliminado',
-          body: 'Se eliminó el mensaje de la conversación de forma segura.',
-          avatarEmoji: '🗑️',
-          avatarColor: 'bg-rose-600',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setNotifications(prev => [toast, ...prev.slice(0, 1)]);
-        if (soundOn) playNotificationSound();
-      }
+      await deleteCloudMessage(messageId);
+      apiFetch(`/api/messages/${messageId}`, { method: 'DELETE' }).catch(() => {});
+
+      const toast: LocalNotification = {
+        id: 'deleted-' + Date.now(),
+        title: 'Mensaje Eliminado',
+        body: 'Se eliminó el mensaje de la conversación en tiempo real.',
+        avatarEmoji: '🗑️',
+        avatarColor: 'bg-rose-600',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setNotifications(prev => [toast, ...prev.slice(0, 1)]);
+      if (soundOn) playNotificationSound();
     } catch (e) {
-      console.error('Failed to delete message on backend server:', e);
+      console.error('Failed to delete message on cloud:', e);
     }
   };
 
   // --- React to message with emoji ---
   const handleReactToMessage = async (messageId: string, reaction: string) => {
     try {
+      const targetMsg = messages.find(m => m.id === messageId);
+      const currentReactions = targetMsg?.reactions || [];
+
       setMessages(prev => {
         const next = prev.map(m => {
           if (m.id === messageId) {
@@ -1159,15 +1223,13 @@ export default function App() {
         return next;
       });
 
-      const response = await apiFetch(`/api/messages/${messageId}/react`, {
+      await toggleCloudMessageReaction(messageId, reaction, currentReactions);
+
+      apiFetch(`/api/messages/${messageId}/react`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reaction }),
-      });
-
-      if (!response.ok) {
-        console.warn('Reactions out of sync');
-      }
+      }).catch(() => {});
     } catch (e) {
       console.error('Failed to react to message:', e);
     }
@@ -1176,6 +1238,9 @@ export default function App() {
   // --- Toggle Star (Mensaje Destacado) ---
   const handleToggleStarMessage = async (messageId: string) => {
     try {
+      const targetMsg = messages.find(m => m.id === messageId);
+      const currentStarred = Boolean(targetMsg?.isStarred);
+
       setMessages(prev => {
         const next = prev.map(m => {
           if (m.id === messageId) {
@@ -1187,13 +1252,11 @@ export default function App() {
         return next;
       });
 
-      const response = await apiFetch(`/api/messages/${messageId}/star`, {
-        method: 'POST',
-      });
+      await toggleCloudMessageStar(messageId, currentStarred);
 
-      if (!response.ok) {
-        console.warn('Starring state out of sync');
-      }
+      apiFetch(`/api/messages/${messageId}/star`, {
+        method: 'POST',
+      }).catch(() => {});
     } catch (e) {
       console.error('Failed to toggle star on message:', e);
     }
@@ -1202,37 +1265,34 @@ export default function App() {
   // --- Add new contact option (Admin Only - Papá José Manuel) ---
   const handleAddNewContact = async (newContact: Omit<Contact, 'role'>) => {
     try {
-      const response = await apiFetch('/api/contacts', {
+      const fullContact: Contact = {
+        ...newContact,
+        role: 'member',
+      };
+
+      await saveCloudContact(fullContact);
+
+      apiFetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contact: newContact,
           activeUser: activeUser?.id,
         }),
-      });
+      }).catch(() => {});
 
-      if (response.ok) {
-        const result = await response.json();
-        setContacts(result.contacts);
-        try {
-          localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(result.contacts));
-        } catch {
-          // ignore
-        }
-
-        const alertToast: LocalNotification = {
-          id: 'added-' + Date.now(),
-          title: 'Familiar Registrado',
-          body: `¡Excelente José! El integrante "${newContact.name}" ha sido agregado a la red familiar.`,
-          avatarEmoji: '✨',
-          avatarColor: 'bg-amber-500',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setNotifications(prev => [alertToast, ...prev.slice(0, 1)]);
-        if (soundOn) playNotificationSound();
-      }
+      const alertToast: LocalNotification = {
+        id: 'added-' + Date.now(),
+        title: 'Familiar Registrado en la Nube',
+        body: `¡Excelente José! El integrante "${newContact.name}" fue guardado en Firebase Firestore.`,
+        avatarEmoji: '✨',
+        avatarColor: 'bg-amber-500',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setNotifications(prev => [alertToast, ...prev.slice(0, 1)]);
+      if (soundOn) playNotificationSound();
     } catch (e) {
-      console.error('Failed to add new contact on server:', e);
+      console.error('Failed to add new contact on cloud:', e);
     }
   };
 
@@ -1296,15 +1356,15 @@ export default function App() {
         </div>
 
         {mobileView !== 'chat' && (
-          <header className="bg-gradient-to-r from-[#6552e8] to-[#513ed8] dark:from-[#1c1b2e] dark:to-[#171628] text-white px-3 sm:px-4 pt-[calc(var(--sat,0px)+0.625rem)] md:pt-2.5 pb-2.5 flex items-center justify-between shadow-md z-30 select-none shrink-0 border-b border-white/10 dark:border-[#2d2b45] transition-colors">
+          <header className="bg-gradient-to-r from-[#6552e8] to-[#513ed8] dark:from-[#1c1b2e] dark:to-[#171628] text-white px-2.5 sm:px-3 pt-[calc(var(--sat,0px)+0.25rem)] md:pt-1.5 pb-1.5 flex items-center justify-between shadow-xs z-30 select-none shrink-0 border-b border-white/10 dark:border-[#2d2b45] transition-colors">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="bg-white/15 p-1.5 rounded-xl border border-white/10 shrink-0 flex items-center justify-center">
-                <FamiChatLogo className="w-4.5 h-4.5 text-white" />
+              <div className="bg-white/15 p-1 rounded-lg border border-white/10 shrink-0 flex items-center justify-center">
+                <FamiChatLogo className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
                 <span className="font-extrabold text-[13px] sm:text-sm tracking-wide flex items-center gap-1 uppercase truncate font-sans">
                   FamiChat{' '}
-                  <span className="text-violet-200 dark:text-violet-300 font-light text-[10px] italic font-serif normal-case">
+                  <span className="text-violet-200 dark:text-violet-300 font-light text-[9.5px] italic font-serif normal-case">
                     by Martinez Alejandro
                   </span>
                 </span>

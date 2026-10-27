@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Contact, Message } from '../types';
 import { 
-  Send, Smile, Paperclip, MoreVertical, Search, Bell, Phone, Video, Trash2, ChevronLeft, Info, Mic, Image, Sparkles, X, Play, Pause, AlertCircle, HelpCircle, Check, CheckCheck, Star, Camera, Reply
+  Send, Smile, Paperclip, MoreVertical, Search, Bell, Phone, Video, Trash2, ChevronLeft, Info, Mic, Image, Sparkles, X, Play, Pause, AlertCircle, HelpCircle, Check, CheckCheck, Star, Camera, Reply, Lock
 } from 'lucide-react';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { ConfirmModal } from './ConfirmModal';
 import { formatLastActive, getFormattedDateDivider } from '../utils/date';
 import { apiFetch } from '../utils/api';
+import { updateCloudTyping } from '../services/firebase';
 
 interface ChatAreaProps {
   currentUser: Contact;
@@ -244,11 +245,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       default:
         return {
           backgroundImage: darkMode
-            ? `radial-gradient(#1c1b2e 0.4px, transparent 0.4px), radial-gradient(#1c1b2e 0.4px, #0c0b1a 0.4px)`
-            : `radial-gradient(#8b7bff 0.4px, transparent 0.4px), radial-gradient(#8b7bff 0.4px, #f7f3ee 0.4px)`,
-          backgroundSize: '20px 20px',
-          backgroundPosition: '0 0, 10px 10px',
-          opacity: darkMode ? 0.96 : 0.94
+            ? `radial-gradient(#2d2948 0.5px, transparent 0.5px), radial-gradient(#2d2948 0.5px, #121021 0.5px)`
+            : `radial-gradient(#d5d0e8 0.5px, transparent 0.5px), radial-gradient(#d5d0e8 0.5px, #faf9fd 0.5px)`,
+          backgroundSize: '22px 22px',
+          backgroundPosition: '0 0, 11px 11px',
+          opacity: 1
         };
     }
   };
@@ -315,11 +316,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }
   }, [activeRoomMessages.length, activeChannelId, currentUser.id]);
 
-  // Real-time API Typing signal trigger
+  // Real-time API & Firebase Firestore Typing signal trigger
   const lastTypingSignaledRef = useRef<number>(0);
   useEffect(() => {
     if (!inputText.trim()) {
-      // Clear typing
+      // Clear typing in Cloud Firestore + Express fallback
+      updateCloudTyping(currentUser.id, activeChannelId, false).catch(() => {});
       apiFetch('/api/typing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -331,6 +333,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     const now = Date.now();
     if (now - lastTypingSignaledRef.current > 2000) {
       lastTypingSignaledRef.current = now;
+      updateCloudTyping(currentUser.id, activeChannelId, true).catch(() => {});
       apiFetch('/api/typing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -503,7 +506,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   return (
-    <div id="chat-active-pane" className="flex-1 bg-[#f7f3ee] flex flex-col h-full relative border-slate-200 min-h-0 overflow-hidden pb-[calc(env(safe-area-inset-bottom))]">
+    <div id="chat-active-pane" className="flex-1 bg-[#faf9fd] dark:bg-[#121021] flex flex-col h-full relative border-slate-200 min-h-0 overflow-hidden pb-[calc(env(safe-area-inset-bottom))]">
       
       {/* Hidden native input for actual camera / gallery roll selection */}
       <input
@@ -514,73 +517,83 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         className="hidden"
       />
 
-      {/* Dynamic Header */}
-      <div id="chat-header-banner" className="bg-slate-50 border-b border-slate-200 px-3 pt-[calc(var(--sat,0px)+0.75rem)] md:pt-3 pb-3 flex items-center justify-between shadow-sm z-10 select-none">
-        <div className="flex items-center gap-2.5 min-w-0">
-          
+      {/* Dynamic Header - Sleek Compact Horizontal Design */}
+      <div 
+        id="chat-header-banner" 
+        className="bg-gradient-to-r from-[#6552e8] to-[#5543da] text-white px-3 sm:px-4 pt-[calc(var(--sat,0px)+0.5rem)] md:pt-2.5 pb-2.5 min-h-[58px] sm:min-h-[62px] flex items-center justify-between shadow-xs z-20 select-none shrink-0 border-b border-[#5240cf]/80 transition-colors"
+      >
+        {/* Left Side: Back button + Avatar + Name & Status */}
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
           {/* Mobile Back navigation button */}
           <button 
             id="mobile-back-to-sidebar-btn"
             onClick={onBackMobile}
-            className="md:hidden p-1.5 hover:bg-slate-200 rounded-full transition-colors text-slate-600 shrink-0 cursor-pointer"
+            className="md:hidden p-1.5 -ml-1 text-white/95 hover:text-white hover:bg-white/15 rounded-full transition-all shrink-0 cursor-pointer active:scale-95"
             title="Volver a chats"
           >
-            <ChevronLeft className="w-5 h-5 stroke-[2.5px]" />
+            <ChevronLeft className="w-5.5 h-5.5 stroke-[2.4px]" />
           </button>
 
-          {/* Avatar frame */}
-          {isGroup ? (
-            <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xl shadow shrink-0">
-              🏡
-            </div>
-          ) : (
-            <div className="relative shrink-0 select-none">
-              <div className={`w-10 h-10 rounded-full ${activeContact?.avatarColor || 'bg-slate-500'} text-white flex items-center justify-center text-xl shadow`}>
+          {/* Crisp Circular Avatar with White Border & Live status indicator */}
+          <div className="relative shrink-0 select-none cursor-pointer" onClick={onToggleMemberInfo}>
+            {isGroup ? (
+              <div className="w-10 h-10 sm:w-10.5 sm:h-10.5 rounded-full bg-white/20 text-white flex items-center justify-center text-xl shadow-xs border-2 border-white/35 shrink-0">
+                🏡
+              </div>
+            ) : (
+              <div className={`w-10 h-10 sm:w-10.5 sm:h-10.5 rounded-full ${activeContact?.avatarColor || 'bg-slate-500'} text-white flex items-center justify-center text-xl shadow-xs border-2 border-white/35`}>
                 {activeContact?.avatarEmoji || '👤'}
               </div>
-              {activeContact?.isOnline && (
-                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-500/10 animate-pulse" />
-              )}
-            </div>
-          )}
+            )}
+            {!isGroup && activeContact?.isOnline && (
+              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-[#5543da] ring-1 ring-white/60 animate-pulse" />
+            )}
+          </div>
 
-          {/* Profile presence state names */}
-          <div className="min-w-0">
-            <h2 id="chat-partner-fullname" className="font-semibold text-slate-800 text-[14.5px] truncate leading-tight flex items-center gap-1.5">
-              <span>{isGroup ? 'Familia Unida 🏡' : activeContact?.name}</span>
-              {!isGroup && (
-                <span className="text-[10px] bg-slate-250 text-slate-650 px-1.5 rounded-full font-medium border border-slate-200 capitalize">
-                  {activeContact?.relationship}
+          {/* Contact Details (Name + Status) */}
+          <div className="min-w-0 flex-1 cursor-pointer" onClick={onToggleMemberInfo}>
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 id="chat-partner-fullname" className="font-semibold text-white text-[15px] sm:text-base leading-tight truncate">
+                {isGroup ? 'Familia Unida 🏡' : activeContact?.name}
+              </h2>
+              {!isGroup && activeContact?.relationship && (
+                <span className="text-[10px] bg-white/20 text-violet-100 px-2 py-0.5 rounded-full font-medium border border-white/25 capitalize shrink-0 hidden xs:inline-block">
+                  {activeContact.relationship}
                 </span>
               )}
-            </h2>
-            <p className="text-[11px] text-slate-500 leading-none mt-1.5 flex items-center gap-1 min-h-[14px] overflow-hidden max-w-[180px] sm:max-w-[240px]">
+            </div>
+
+            {/* Subtitle Status */}
+            <p className="text-xs text-violet-100/90 leading-tight mt-0.5 flex items-center gap-1.5 truncate font-normal">
               {activeTypingLabel ? (
-                <span className="text-[#6552e8] font-bold animate-pulse flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#6552e8] animate-bounce shrink-0" />
+                <span className="text-emerald-300 font-semibold animate-pulse flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-bounce shrink-0" />
                   {activeTypingLabel}
                 </span>
               ) : (
                 isGroup 
-                  ? <span className="truncate">{contacts.length} familiares activos</span>
+                  ? <span>{contacts.length} familiares activos</span>
                   : activeContact ? (
                       activeContact.isOnline ? (
-                        <span className="text-emerald-600 font-semibold truncate">En línea</span>
+                        <span className="text-emerald-300 font-medium flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                          En línea
+                        </span>
                       ) : (
-                        <span key={activeContact.id} className="animate-status-slide-twice inline-block whitespace-nowrap">
+                        <span key={activeContact.id} className="truncate">
                           {formatLastActive(activeContact)}
                         </span>
                       )
                     ) : (
-                      <span className="truncate">Desconectado</span>
+                      <span>Desconectado</span>
                     )
               )}
             </p>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Right Side: Action Controls (Search, Info, Trash, or Selection Actions) */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Cancel Selection button if a message is selected */}
           {selectedMessage && (
             <button
@@ -588,11 +601,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 setActiveSelectedMsgId(null);
                 setSelectedReactMessageId(null);
               }}
-              className="p-1.5 sm:p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 border border-slate-250 rounded-full transition-all flex items-center justify-center gap-1 cursor-pointer bg-white"
+              className="px-2.5 py-1 text-white/95 hover:text-white hover:bg-white/20 rounded-full transition-all flex items-center justify-center gap-1 cursor-pointer bg-white/15 text-xs font-medium active:scale-95"
               title="Cancelar selección"
             >
-              <X className="w-4 h-4" />
-              <span className="text-[10px] font-bold hidden sm:inline px-0.5">Cancelar</span>
+              <X className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Cancelar</span>
             </button>
           )}
 
@@ -603,17 +616,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               onClick={() => {
                 onStarMessage?.(selectedMessage.id);
               }}
-              className={`p-1.5 sm:p-2 rounded-full transition-all flex items-center justify-center gap-1 cursor-pointer bg-white border ${
+              className={`p-2 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
                 selectedMessage.isStarred 
-                  ? 'text-amber-500 border-amber-205 bg-amber-50/70 hover:bg-amber-100' 
-                  : 'text-slate-500 border-slate-200 hover:text-amber-500 hover:bg-amber-50'
+                  ? 'text-amber-300 bg-amber-400/20' 
+                  : 'text-white/80 hover:text-amber-300 hover:bg-white/15'
               }`}
               title={selectedMessage.isStarred ? "Quitar de destacados" : "Destacar mensaje"}
             >
-              <Star className={`w-4 h-4 ${selectedMessage.isStarred ? 'fill-amber-400' : ''}`} />
-              <span className="text-[10px] font-bold hidden sm:inline px-0.5">
-                {selectedMessage.isStarred ? "Destacado ⭐" : "Destacar"}
-              </span>
+              <Star className={`w-4.5 h-4.5 ${selectedMessage.isStarred ? 'fill-amber-300' : ''}`} />
             </button>
           )}
 
@@ -626,37 +636,43 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 setActiveSelectedMsgId(null);
                 setSelectedReactMessageId(null);
               }}
-              className="p-1.5 sm:p-2 text-[#6552e8] hover:text-white hover:bg-[#6552e8] border border-emerald-200 rounded-full transition-all flex items-center justify-center gap-1 cursor-pointer bg-white"
-              title="Responder mensaje style WhatsApp"
+              className="p-2 text-white bg-white/20 hover:bg-white/30 rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-95"
+              title="Responder mensaje"
             >
-              <Reply className="w-4 h-4" />
-              <span className="text-[10px] font-bold hidden sm:inline px-0.5">Responder</span>
+              <Reply className="w-4.5 h-4.5" />
             </button>
           )}
 
+          {/* Search Button */}
           <button
             id="chat-toggle-search-btn"
             onClick={() => {
               setShowChatSearch(!showChatSearch);
               setChatSearchQuery('');
             }}
-            className={`p-2 rounded-full hover:bg-slate-200 transition-colors cursor-pointer ${showChatSearch ? 'bg-slate-250 text-emerald-600' : 'text-slate-600'}`}
+            className={`p-2 rounded-full hover:bg-white/15 transition-all cursor-pointer active:scale-95 ${
+              showChatSearch ? 'bg-white/20 text-white' : 'text-violet-100 hover:text-white'
+            }`}
             title="Buscar mensajes en esta conversación"
           >
-            <Search className="w-4.5 h-4.5" />
+            <Search className="w-4.5 h-4.5 stroke-[2px]" />
           </button>
 
+          {/* Info Button */}
           {!selectedMessage && (
             <button
               id="chat-toggle-info-btn"
               onClick={onToggleMemberInfo}
-              className={`p-2 rounded-full hover:bg-slate-200 transition-colors cursor-pointer ${showMemberInfo ? 'bg-slate-200 text-teal-600' : 'text-slate-600'}`}
+              className={`p-2 rounded-full hover:bg-white/15 transition-all cursor-pointer active:scale-95 ${
+                showMemberInfo ? 'bg-white/20 text-white' : 'text-violet-100 hover:text-white'
+              }`}
               title="Ver más información"
             >
-              <Info className="w-4.5 h-4.5" />
+              <Info className="w-4.5 h-4.5 stroke-[2px]" />
             </button>
           )}
 
+          {/* Clear / Delete Button */}
           {!replyMsg && ((selectedMessage && selectedMessage.senderId === currentUser.id) || !selectedMessage) && (
             <button
               id="chat-clear-conversation-btn"
@@ -679,15 +695,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   });
                 }
               }}
-              className={`p-2 text-rose-600 hover:text-white hover:bg-rose-550 border rounded-full transition-all flex items-center justify-center gap-1 cursor-pointer bg-white ${
-                selectedMessage ? 'border-rose-300' : 'border-slate-250 hover:border-transparent'
-              }`}
-              title={selectedMessage ? "Eliminar Mensaje Seleccionado" : "Vaciar Conversación"}
+              className="p-2 text-rose-300 hover:text-white hover:bg-rose-500/25 rounded-full transition-all cursor-pointer active:scale-95"
+              title={selectedMessage ? "Eliminar Mensaje" : "Vaciar Conversación"}
             >
-              <Trash2 className="w-4.5 h-4.5" />
-              <span className="text-[11px] font-bold hidden sm:inline px-0.5">
-                {selectedMessage ? "Eliminar" : "Vaciar chat"}
-              </span>
+              <Trash2 className="w-4.5 h-4.5 stroke-[2px]" />
             </button>
           )}
         </div>
@@ -695,20 +706,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Search Input Bar */}
       {showChatSearch && (
-        <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between gap-2.5 z-10 animate-fade-in select-none">
+        <div className="bg-white dark:bg-[#1c1b2e] border-b border-slate-200 dark:border-[#2d2b45] px-4 py-2 flex items-center justify-between gap-2.5 z-10 animate-fade-in select-none">
           <div className="relative flex-1">
             <input
               type="text"
               placeholder="Buscar mensajes..."
               value={chatSearchQuery}
               onChange={(e) => setChatSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 py-1.5 pl-8 pr-8 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-500"
+              className="w-full bg-slate-50 dark:bg-[#131225] border border-slate-200 dark:border-[#2d2b45] py-1.5 pl-8 pr-8 rounded-lg text-xs text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#6552e8]"
             />
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
             {chatSearchQuery && (
               <button
                 onClick={() => setChatSearchQuery('')}
-                className="absolute right-2.5 top-2 hover:bg-slate-200 rounded-full w-5 h-5 flex items-center justify-center text-slate-500 hover:text-slate-850 cursor-pointer font-bold text-xs"
+                className="absolute right-2.5 top-2 hover:bg-slate-200 dark:hover:bg-[#27263d] rounded-full w-5 h-5 flex items-center justify-center text-slate-500 hover:text-slate-850 cursor-pointer font-bold text-xs"
               >
                 ×
               </button>
@@ -719,14 +730,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               setShowChatSearch(false);
               setChatSearchQuery('');
             }}
-            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors uppercase px-1 py-1 cursor-pointer"
+            className="text-[10px] font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors uppercase px-1 py-1 cursor-pointer"
           >
             Cerrar
           </button>
         </div>
       )}
 
-      {/* Grid of messages with styled WhatsApp backdrop background wallpaper */}
+      {/* Grid of messages with styled backdrop background wallpaper */}
       <div 
         id="messages-wallpaper-container" 
         ref={scrollContainerRef}
@@ -734,26 +745,110 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           setActiveSelectedMsgId(null);
           setSelectedReactMessageId(null);
         }}
-        className="flex-1 overflow-y-auto px-4 py-5 flex flex-col space-y-3.5 custom-scrollbar relative cursor-default transition-all duration-300"
+        className="flex-1 overflow-y-auto px-4 py-4 flex flex-col space-y-3.5 custom-scrollbar relative cursor-default transition-all duration-300"
         style={getWallpaperStyle()}
       >
         
-        {/* Safe Encryption Notice Card - Only shown if the chat room has no messages yet */}
+        {/* Safe Encryption Notice Card (Image 2 Design: warm peach card with coral lock badge) */}
         {activeRoomMessages.length === 0 && (
-          <div className="mx-auto bg-[#ffeecd] border border-amber-200/40 rounded-lg p-2.5 max-w-sm text-center shadow-sm select-none">
-            <p className="text-[10px] text-slate-650 font-semibold leading-relaxed">
-              🔒 Red Familiar En Vivo: Tu navegador está conectado a la base de datos Express instalada. Cualquier integrante de la familia que abra su teléfono verá tus fotos, audios e imágenes en el instante.
+          <div className="mx-auto w-full max-w-sm bg-[#fdeee7] dark:bg-[#2c212a] border border-[#fcd5c5] dark:border-[#4d3240] rounded-2xl p-3 shadow-xs select-none flex items-center gap-3 my-2 animate-fade-in">
+            <div className="w-8 h-8 rounded-xl bg-[#ea580c]/12 dark:bg-[#ea580c]/25 text-[#ea580c] dark:text-[#fb923c] flex items-center justify-center shrink-0">
+              <Lock className="w-4.5 h-4.5" />
+            </div>
+            <p className="text-[11px] text-[#7c2d12] dark:text-[#fcd5c5] font-normal leading-relaxed text-left flex-1">
+              Tus mensajes y fotos están protegidos y se sincronizan en tiempo real exclusivamente para tu familia.
             </p>
           </div>
         )}
 
+        {/* Empty Chat State (Image 2 Design: Loving Family inside Heart) */}
         {activeRoomMessages.length === 0 ? (
-          <div className="my-auto text-center py-10 flex flex-col items-center justify-center gap-3">
-            <span className="text-4xl">💬</span>
-            <div className="bg-white/90 backdrop-blur px-5 py-3 rounded-xl shadow-md max-w-xs border border-slate-150">
-              <h3 className="font-bold text-slate-700 text-xs">Sin mensajes aún</h3>
-              <p className="text-[11px] text-slate-500 mt-1">¡Utiliza la barra de abajo para mandar textos, fotos de tu galería o notas de voz!</p>
+          <div className="my-auto text-center py-6 flex flex-col items-center justify-center gap-2 select-none animate-fade-in">
+            {/* Loving Family inside Heart Graphic */}
+            <div className="relative mb-2 flex items-center justify-center">
+              <svg viewBox="0 0 200 200" className="w-40 h-40 sm:w-44 sm:h-44 drop-shadow-md" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="heartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#fca5a5" />
+                    <stop offset="100%" stopColor="#f87171" />
+                  </linearGradient>
+                  <linearGradient id="skinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#ffedd5" />
+                    <stop offset="100%" stopColor="#fed7aa" />
+                  </linearGradient>
+                  <clipPath id="familyHeartClip">
+                    <path d="M100 178 C42 135 18 95 18 60 C18 32 38 18 66 18 C83 18 94 28 100 37 C106 28 117 18 134 18 C162 18 182 32 182 60 C182 95 158 135 100 178 Z" />
+                  </clipPath>
+                </defs>
+
+                {/* Outer Glow / Soft Heart Background */}
+                <path
+                  d="M100 178 C42 135 18 95 18 60 C18 32 38 18 66 18 C83 18 94 28 100 37 C106 28 117 18 134 18 C162 18 182 32 182 60 C182 95 158 135 100 178 Z"
+                  fill="#ffe4e6"
+                  stroke="#fda4af"
+                  strokeWidth="3.5"
+                />
+
+                {/* Inner clipped family artwork */}
+                <g clipPath="url(#familyHeartClip)">
+                  <circle cx="100" cy="110" r="90" fill="#fecdd3" opacity="0.65" />
+
+                  {/* Little white accent hearts */}
+                  <path d="M48 65 C44 60 38 60 38 66 C38 72 48 78 48 78 C48 78 58 72 58 66 C58 60 52 60 48 65 Z" fill="#ffffff" opacity="0.85" />
+                  <path d="M152 60 C148 55 142 55 142 61 C142 67 152 73 152 73 C152 73 162 67 162 61 C162 55 156 55 152 60 Z" fill="#ffffff" opacity="0.85" />
+
+                  {/* Mother Body (Soft Violet-Blue blouse) */}
+                  <path d="M60 190 C60 135 85 125 115 125 C145 125 168 135 168 190 Z" fill="#6366f1" />
+
+                  {/* Mother Hair behind */}
+                  <ellipse cx="115" cy="85" rx="30" ry="34" fill="#312e81" />
+                  <path d="M85 90 C80 120 90 145 105 155 C98 140 92 115 92 95 Z" fill="#312e81" />
+                  <path d="M145 90 C150 120 140 145 125 155 C132 140 138 115 138 95 Z" fill="#312e81" />
+
+                  {/* Mother Face */}
+                  <ellipse cx="115" cy="85" rx="20" ry="23" fill="url(#skinGrad)" />
+
+                  {/* Mother Hair Front styling */}
+                  <path d="M96 74 C104 65 124 64 134 72 C134 72 130 84 125 80 C116 74 104 76 96 74 Z" fill="#312e81" />
+
+                  {/* Mother Eyes (happy arc) */}
+                  <path d="M106 85 C108 88 112 88 114 85" stroke="#4338ca" strokeWidth="2" strokeLinecap="round" fill="none" />
+                  <path d="M120 85 C122 88 126 88 128 85" stroke="#4338ca" strokeWidth="2" strokeLinecap="round" fill="none" />
+                  {/* Mother Smile */}
+                  <path d="M113 95 C116 98 120 98 123 95" stroke="#e11d48" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+                  {/* Mother Blush */}
+                  <circle cx="106" cy="91" r="3" fill="#fb7185" opacity="0.6" />
+                  <circle cx="127" cy="91" r="3" fill="#fb7185" opacity="0.6" />
+
+                  {/* Daughter on the left (Pink shirt) */}
+                  <path d="M45 190 C45 145 65 140 85 140 C105 140 110 155 110 190 Z" fill="#f472b6" />
+                  <ellipse cx="72" cy="115" rx="16" ry="18" fill="#1e1b4b" />
+                  <ellipse cx="72" cy="116" rx="13" ry="14" fill="url(#skinGrad)" />
+                  <path d="M60 108 C66 100 78 100 84 107 C84 107 78 114 74 112 C69 110 63 111 60 108 Z" fill="#1e1b4b" />
+                  <path d="M66 117 C68 119 71 119 73 117" stroke="#4338ca" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+                  <path d="M76 117 C78 119 81 119 83 117" stroke="#4338ca" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+                  <path d="M72 124 C74 126 77 126 79 124" stroke="#e11d48" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+
+                  {/* Son in center hugging (Warm yellow/amber shirt) */}
+                  <path d="M75 190 C75 150 90 145 110 145 C130 145 135 155 135 190 Z" fill="#fbbf24" />
+                  <ellipse cx="103" cy="130" rx="15" ry="16" fill="#78350f" />
+                  <ellipse cx="103" cy="131" rx="12" ry="13" fill="url(#skinGrad)" />
+                  <path d="M92 125 C97 118 108 118 114 124 C114 124 109 129 105 127 C100 126 95 127 92 125 Z" fill="#78350f" />
+                  <path d="M97 132 C99 134 102 134 104 132" stroke="#4338ca" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+                  <path d="M106 132 C108 134 111 134 113 132" stroke="#4338ca" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+                  <path d="M102 138 C104 140 107 140 109 138" stroke="#e11d48" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+                </g>
+              </svg>
             </div>
+
+            {/* Typography matching Image 2 */}
+            <h3 className="font-extrabold text-slate-800 dark:text-white text-lg sm:text-xl tracking-tight">
+              ¡Tu chat familiar está listo!
+            </h3>
+            <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-300 font-medium leading-relaxed max-w-xs mx-auto">
+              ¡Esperando tu primer mensaje o foto!<br />
+              Empieza abajo.
+            </p>
           </div>
         ) : searchFilteredMessages.length === 0 ? (
           <div className="my-auto text-center py-10 flex flex-col items-center justify-center gap-3 select-none">
@@ -1162,17 +1257,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             </div>
           </div>
         ) : (
-          /* Input box form container */
+          /* Input box form container matching Image 2 */
           <form onSubmit={handleSend} className="w-full max-w-full flex items-center gap-2 select-none">
             {/* Rounded Input Capsule */}
-            <div className="flex-1 flex items-center bg-white dark:bg-[#27263d] rounded-full px-3 py-1 shadow-xs border border-slate-200 dark:border-neutral-700/30 min-w-0 transition-colors">
+            <div className="flex-1 flex items-center bg-white dark:bg-[#201f35] rounded-full px-3.5 py-1 shadow-sm border border-slate-200/90 dark:border-[#34325a] min-w-0 transition-colors">
               
               {/* Main Emoji Drawer Switch */}
               <button
                 id="chat-toggle-emojis-drawer-btn"
                 type="button"
                 onClick={() => setShowEmojiDrawer(!showEmojiDrawer)}
-                className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] transition-colors cursor-pointer shrink-0 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white ${showEmojiDrawer ? 'text-[#6552e8] bg-slate-100 dark:bg-[#34325a]' : ''}`}
+                className={`p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] transition-colors cursor-pointer shrink-0 text-[#6552e8] dark:text-[#9486fb] ${showEmojiDrawer ? 'bg-violet-50 dark:bg-[#34325a]' : ''}`}
                 title="Símbolos y Emojis"
               >
                 <Smile className="w-6 h-6 pointer-events-none" />
@@ -1198,7 +1293,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 id="chat-photos-gallery-roll-btn"
                 type="button"
                 onClick={handlePhotoUploadTrigger}
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] text-[#6552e8] dark:text-[#9486fb] transition-colors cursor-pointer shrink-0"
                 title="Adjuntar Imagen de la Galería del Celular"
               >
                 <Paperclip className="w-5.5 h-5.5" />
@@ -1209,34 +1304,22 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 id="chat-photos-camera-trigger-btn"
                 type="button"
                 onClick={handlePhotoUploadTrigger}
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer shrink-0 mr-1"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#34325a] text-[#6552e8] dark:text-[#9486fb] transition-colors cursor-pointer shrink-0 mr-1"
                 title="Tomar foto o subir imagen"
               >
                 <Camera className="w-5.5 h-5.5" />
               </button>
             </div>
 
-            {/* Standalone Circular Send/Mic Button on the Right */}
-            {inputText.trim() ? (
-              <button
-                id="chat-submit-message-btn"
-                type="submit"
-                className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-[#6552e8] dark:hover:bg-[#5442cc] flex items-center justify-center text-white active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
-                title="Enviar Mensaje"
-              >
-                <Send className="w-5.5 h-5.5 text-white fill-current" />
-              </button>
-            ) : (
-              <button
-                id="chat-record-voice-note-btn"
-                type="button"
-                onClick={startRecordingAudio}
-                className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 dark:bg-[#6552e8] dark:hover:bg-[#5442cc] flex items-center justify-center text-white active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
-                title="Presiona para grabar nota de voz"
-              >
-                <Mic className="w-5.5 h-5.5 text-white" />
-              </button>
-            )}
+            {/* Standalone Circular Send/Mic Button on Right (Image 2 Violet-to-Coral Gradient) */}
+            <button
+              id="chat-submit-message-btn"
+              type="submit"
+              className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#6552e8] via-[#7d5de8] to-[#f43f5e] hover:brightness-110 flex items-center justify-center text-white active:scale-95 transition-all shadow-md shadow-violet-500/25 shrink-0 cursor-pointer"
+              title={inputText.trim() ? "Enviar Mensaje" : "Presiona para enviar o grabar nota de voz"}
+            >
+              <Send className="w-5.5 h-5.5 text-white fill-current -mr-0.5" />
+            </button>
           </form>
         )}
 
@@ -1323,6 +1406,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
             {!isGroup && (
               <div className="bg-slate-50 dark:bg-[#1c1b2e] p-3 rounded-lg border border-slate-150 dark:border-[#2d2b45] text-slate-700 dark:text-[#ecebfa] space-y-2.5">
+                <div>
+                  <h5 className="font-bold text-slate-700 dark:text-[#9a98b8] uppercase text-[9px] tracking-wider mb-0.5">ID Único en Base de Datos</h5>
+                  <p className="text-slate-600 dark:text-[#cfcde8] font-mono text-[10.5px]">{activeContact?.id}</p>
+                </div>
                 <div>
                   <h5 className="font-bold text-slate-700 dark:text-[#9a98b8] uppercase text-[9px] tracking-wider mb-0.5">Teléfono Registrado</h5>
                   <p className="text-slate-600 dark:text-[#cfcde8] font-mono text-[11px]">{activeContact?.phone || 'No registrado'}</p>
