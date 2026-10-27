@@ -405,10 +405,10 @@ export default function App() {
     }
   }, [showMoreMenu, showFaqGuide, showCreditsModal, showIdentityPinModal, showUpdateModal, showChatInfo, mobileView]);
 
-  // Check for updates once on startup in background with a 3-second delay after app loads
+  // Check for updates on startup and when app returns to foreground
   const hasStartedAutoUpdateCheckRef = useRef<boolean>(false);
   useEffect(() => {
-    if (loading || hasStartedAutoUpdateCheckRef.current) return;
+    if (loading) return;
 
     let isCancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -459,6 +459,8 @@ export default function App() {
           }
           setShowUpdateModal(true);
         }
+      } else {
+        setHasUpdate(false);
       }
     };
 
@@ -467,12 +469,32 @@ export default function App() {
         hasStartedAutoUpdateCheckRef.current = true;
         performCheck(false);
       }
-    }, 3000);
+    }, 2000);
+
+    const handleVisibilityResume = () => {
+      if (document.visibilityState === 'visible') {
+        performCheck(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityResume);
+
+    let capResumeListener: any = null;
+    if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+      capResumeListener = CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          performCheck(true);
+        }
+      });
+    }
 
     return () => {
       isCancelled = true;
       clearTimeout(initialTimer);
       if (retryTimer) clearTimeout(retryTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityResume);
+      if (capResumeListener) {
+        capResumeListener.then((l: any) => l.remove());
+      }
     };
   }, [loading]);
 

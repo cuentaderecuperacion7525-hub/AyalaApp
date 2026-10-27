@@ -82,25 +82,61 @@ export async function fetchLatestRelease(installedVersionOverride?: string): Pro
   }
 
   try {
-    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
-    const response = await CapacitorHttp.get({
-      url,
+    const cacheBuster = `t=${Date.now()}`;
+    const latestUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest?${cacheBuster}`;
+    let response = await CapacitorHttp.get({
+      url: latestUrl,
       headers: {
         'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'FamiChat-App'
+        'User-Agent': 'FamiChat-App',
+        'Cache-Control': 'no-cache'
       }
     });
 
-    if (response.status === 404) {
-      return {
-        success: false,
-        hasUpdate: false,
-        installedVersion,
-        errorMessage: 'No se encontró ninguna release'
-      };
-    }
+    let releaseData: any = null;
 
-    if (response.status < 200 || response.status >= 300) {
+    if (response.status >= 200 && response.status < 300) {
+      releaseData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+    } else if (response.status === 404) {
+      // Respaldo: consultar la lista de releases por si la última no fue marcada como 'latest'
+      const listUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=5&${cacheBuster}`;
+      const listRes = await CapacitorHttp.get({
+        url: listUrl,
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'FamiChat-App',
+          'Cache-Control': 'no-cache'
+        }
+      });
+
+      if (listRes.status >= 200 && listRes.status < 300) {
+        const listData = typeof listRes.data === 'string' ? JSON.parse(listRes.data) : listRes.data;
+        if (Array.isArray(listData) && listData.length > 0) {
+          releaseData = listData[0];
+        } else {
+          return {
+            success: false,
+            hasUpdate: false,
+            installedVersion,
+            errorMessage: 'Aún no hay releases publicadas en GitHub'
+          };
+        }
+      } else if (listRes.status === 404) {
+        return {
+          success: false,
+          hasUpdate: false,
+          installedVersion,
+          errorMessage: 'Repo privado en GitHub (cámbialo a Public)'
+        };
+      } else {
+        return {
+          success: false,
+          hasUpdate: false,
+          installedVersion,
+          errorMessage: `Error al consultar GitHub (código ${listRes.status})`
+        };
+      }
+    } else {
       return {
         success: false,
         hasUpdate: false,
@@ -109,8 +145,7 @@ export async function fetchLatestRelease(installedVersionOverride?: string): Pro
       };
     }
 
-    const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-    const rawTag = (data?.tag_name || '').trim();
+    const rawTag = (releaseData?.tag_name || '').trim();
 
     if (!rawTag) {
       return {
@@ -127,8 +162,8 @@ export async function fetchLatestRelease(installedVersionOverride?: string): Pro
 
     // Buscar activo .apk en la release
     let apkDownloadUrl = '';
-    if (Array.isArray(data.assets)) {
-      const apkAsset = data.assets.find(
+    if (Array.isArray(releaseData.assets)) {
+      const apkAsset = releaseData.assets.find(
         (asset: any) => typeof asset?.name === 'string' && asset.name.toLowerCase().endsWith('.apk')
       );
       if (apkAsset?.browser_download_url) {
@@ -136,7 +171,7 @@ export async function fetchLatestRelease(installedVersionOverride?: string): Pro
       }
     }
 
-    const fallbackReleaseUrl = data.html_url || `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+    const fallbackReleaseUrl = releaseData.html_url || `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 
     return {
       success: true,
@@ -145,7 +180,7 @@ export async function fetchLatestRelease(installedVersionOverride?: string): Pro
       release: {
         version: displayTag,
         cleanVersion: cleanTag,
-        body: data.body || 'Nuevas mejoras y optimizaciones para la familia.',
+        body: releaseData.body || 'Nuevas mejoras y optimizaciones para la familia.',
         downloadUrl: apkDownloadUrl || fallbackReleaseUrl,
         releaseUrl: fallbackReleaseUrl
       }
